@@ -108,7 +108,7 @@ Route::get('dashboardB',[DashboardBController::class, 'index'])
     ->name('dashboard.ibub');
 
 Route::get('dashboardPembayaran',[DashboardPembayaranController::class, 'index'])
-    ->middleware('autologin', 'role:admin,pembayaran')
+    ->middleware('autologin', 'role:admin,Pembayaran')
     ->name('dashboard.pembayaran');
 
 Route::get('dashboardAkutansi',[DashboardAkutansiController::class, 'index'])
