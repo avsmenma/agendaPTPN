@@ -235,6 +235,57 @@
     transform: translateY(0);
   }
 
+  .btn-reset {
+    padding: 12px 24px;
+    border: none;
+    background: linear-gradient(135deg, #6c757d 0%, #5a6268 100%);
+    color: white;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 16px rgba(108, 117, 125, 0.3);
+    letter-spacing: 0.5px;
+    margin-right: 10px;
+  }
+
+  .btn-reset:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 24px rgba(108, 117, 125, 0.4);
+    background: linear-gradient(135deg, #5a6268 0%, #495057 100%);
+  }
+
+  .btn-auto-fill {
+    padding: 12px 24px;
+    border: none;
+    background: linear-gradient(135deg, #889717 0%, #9ab01f 100%);
+    color: white;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 16px rgba(136, 151, 23, 0.3);
+    letter-spacing: 0.5px;
+    margin-right: 10px;
+  }
+
+  .btn-auto-fill:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 24px rgba(136, 151, 23, 0.4);
+    background: linear-gradient(135deg, #9ab01f 0%, #a9b825 100%);
+  }
+
+  .form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 30px;
+    padding-top: 20px;
+    border-top: 1px solid rgba(8, 62, 64, 0.1);
+  }
+
   .optional-label {
     color: #889717;
     font-weight: 500;
@@ -478,8 +529,15 @@
 
     <!-- Form Actions -->
     <div class="form-actions">
-      <button type="reset" class="btn-reset">Reset</button>
-      <button type="submit" class="btn-submit">Simpan dokumen</button>
+      <button type="button" class="btn-auto-fill" onclick="autoFillForm()">
+        <i class="fa-solid fa-magic me-2"></i>Auto Isi
+      </button>
+      <button type="reset" class="btn-reset">
+        <i class="fa-solid fa-undo me-2"></i>Reset
+      </button>
+      <button type="submit" class="btn-submit">
+        <i class="fa-solid fa-save me-2"></i>Simpan dokumen
+      </button>
     </div>
   </form>
 </div>
@@ -978,6 +1036,184 @@
 
   // Auto-initialize on DOM ready
   document.addEventListener('DOMContentLoaded', initAutocomplete);
+
+  // Auto Fill Form Function
+  function autoFillForm() {
+    // Generate random data
+    const randomData = generateRandomDocumentData();
+
+    // Fill form fields
+    fillFormField('nomor_agenda', randomData.nomor_agenda);
+    fillFormField('bagian', randomData.bagian, 'select');
+    fillFormField('nama_pengirim', randomData.nama_pengirim);
+    fillFormField('nomor_spp', randomData.nomor_spp);
+    fillFormField('tanggal_spp', randomData.tanggal_spp, 'datetime-local');
+    fillFormField('uraian_spp', randomData.uraian_spp, 'textarea');
+    fillFormField('nilai_rupiah', randomData.nilai_rupiah);
+    fillFormField('kategori', randomData.kategori, 'select');
+    fillFormField('jenis_dokumen', randomData.jenis_dokumen, 'select');
+    fillFormField('jenis_sub_pekerjaan', randomData.jenis_sub_pekerjaan, 'select');
+    fillFormField('jenis_pembayaran', randomData.jenis_pembayaran, 'select');
+    fillFormField('no_berita_acara', randomData.no_berita_acara);
+    fillFormField('tanggal_berita_acara', randomData.tanggal_berita_acara, 'date');
+    fillFormField('no_spk', randomData.no_spk);
+    fillFormField('tanggal_spk', randomData.tanggal_spk, 'date');
+    fillFormField('tanggal_berakhir_spk', randomData.tanggal_berakhir_spk, 'date');
+
+    // Fill dynamic fields
+    fillDynamicField('nomor_pr[]', randomData.nomor_pr);
+    fillDynamicField('nomor_po[]', randomData.nomor_po);
+    fillDynamicField('dibayar_kepada[]', randomData.dibayar_kepada);
+
+    // Show success message
+    showNotification('Form berhasil diisi dengan data dummy!');
+  }
+
+  function generateRandomDocumentData() {
+    const bagians = ['DPM', 'SKH', 'SDM', 'TEP', 'KPL', 'AKN', 'TAN', 'PMO'];
+    const categories = ['Operasional', 'Investasi On Farm', 'Pemeliharaan'];
+    const kategoris = ['Administrasi & Umum', 'Exploitasi', 'Pembangunan'];
+    const jenisPembayaran = ['Mitra', 'Internal', 'Kontrak'];
+    const namaPengirim = ['Ahmad Wijaya', 'Siti Nurhaliza', 'Budi Santoso', 'Diana Putri', 'Eko Prasetyo'];
+
+    const currentDate = new Date();
+    const randomDate = new Date(currentDate.getTime() - Math.random() * 30 * 24 * 60 * 60 * 1000);
+
+    return {
+      nomor_agenda: `AGD/${Math.floor(Math.random() * 1000)}/XII/2024`,
+      bagian: bagians[Math.floor(Math.random() * bagians.length)],
+      nama_pengirim: namaPengirim[Math.floor(Math.random() * namaPengirim.length)],
+      nomor_spp: `${Math.floor(Math.random() * 999)}/M/SPP/${Math.floor(Math.random() * 31)}/${String(Math.floor(Math.random() * 12) + 1).padStart(2, '0')}/2024`,
+      tanggal_spp: formatDateTime(randomDate),
+      uraian_spp: generateRandomUraian(),
+      nilai_rupiah: Math.floor(Math.random() * 900000000) + 100000000, // 100M - 1B
+      kategori: categories[Math.floor(Math.random() * categories.length)],
+      jenis_dokumen: kategoris[Math.floor(Math.random() * kategoris.length)],
+      jenis_sub_pekerjaan: 'Pembayaran Tagihan',
+      jenis_pembayaran: jenisPembayaran[Math.floor(Math.random() * jenisPembayaran.length)],
+      no_berita_acara: `BAST/${Math.floor(Math.random() * 100)}/${Math.floor(Math.random() * 31)}/XI/2024`,
+      tanggal_berita_acara: formatDate(randomDate),
+      no_spk: `SPK/${Math.floor(Math.random() * 200)}/TEP/${Math.floor(Math.random() * 12)}/IX/2024`,
+      tanggal_spk: formatDate(randomDate),
+      tanggal_berakhir_spk: formatDate(new Date(randomDate.getTime() + 30 * 24 * 60 * 60 * 1000)),
+      nomor_pr: `PR${Math.floor(Math.random() * 9999).toString().padStart(4, '0')}/XII/2024`,
+      nomor_po: `PO${Math.floor(Math.random() * 9999).toString().padStart(4, '0')}/XII/2024`,
+      dibayar_kepada: 'PT. Mitra Sejati'
+    };
+  }
+
+  function generateRandomUraian() {
+    const uraians = [
+      'Permintaan pembayaran untuk pengadaan alat pertanian periode Desember 2024',
+      'Pembayaran jasa maintenance mesin produksi bulan November 2024',
+      'Pengadaan spare part untuk traktor dan alat pertanian modern',
+      'Pembayaran honorarium konsultan pertanian periode Q4 2024',
+      'Pembelian pupuk organik untuk lahan perkebunan seluas 500 hektar',
+      'Biaya transportasi dan distribusi hasil panen ke gudang',
+      'Pembayaran sewa alat berat untuk kegiatan perawatan kebun',
+      'Pengadaan sistem irigasi modern untuk perkebunan sawit',
+      'Biaya training dan pengembangan SDM pertanian',
+      'Pembayaran asuransi tanaman dan properti pertanian'
+    ];
+
+    return uraians[Math.floor(Math.random() * uraians.length)];
+  }
+
+  function fillFormField(name, value, type = 'text') {
+    const field = document.querySelector(`[name="${name}"]`);
+    if (field) {
+      field.value = value;
+      // Trigger change event for any listeners
+      field.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+  }
+
+  function fillDynamicField(name, value) {
+    const fields = document.querySelectorAll(`[name="${name}"]`);
+    if (fields.length > 0) {
+      fields[0].value = value;
+      fields[0].dispatchEvent(new Event('change', { bubbles: true }));
+    }
+  }
+
+  function formatDateTime(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(Math.floor(Math.random() * 12) + 8).padStart(2, '0'); // 8AM-8PM
+    const minutes = String(Math.floor(Math.random() * 60)).padStart(2, '0');
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+  }
+
+  function formatDate(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  function showNotification(message) {
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+      color: white;
+      padding: 16px 24px;
+      border-radius: 8px;
+      box-shadow: 0 4px 16px rgba(40, 167, 69, 0.3);
+      z-index: 10000;
+      font-weight: 600;
+      max-width: 300px;
+      animation: slideIn 0.3s ease;
+    `;
+    notification.innerHTML = `
+      <i class="fa-solid fa-check-circle me-2"></i>${message}
+    `;
+
+    // Add animation
+    const style = document.createElement('style');
+    style.textContent = `
+      @keyframes slideIn {
+        from {
+          transform: translateX(100%);
+          opacity: 0;
+        }
+        to {
+          transform: translateX(0);
+          opacity: 1;
+        }
+      }
+      @keyframes slideOut {
+        from {
+          transform: translateX(0);
+          opacity: 1;
+        }
+        to {
+          transform: translateX(100%);
+          opacity: 0;
+        }
+      }
+    `;
+    document.head.appendChild(style);
+
+    document.body.appendChild(notification);
+
+    // Auto remove after 3 seconds
+    setTimeout(() => {
+      notification.style.animation = 'slideOut 0.3s ease';
+      setTimeout(() => {
+        if (notification.parentNode) {
+          notification.parentNode.removeChild(notification);
+        }
+        if (style.parentNode) {
+          style.parentNode.removeChild(style);
+        }
+      }, 300);
+    }, 3000);
+  }
 </script>
 
 <style>

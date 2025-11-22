@@ -543,12 +543,12 @@ class DokumenController extends Controller
 
             DB::beginTransaction();
 
-            // Gunakan Universal Approval System
+            // Langsung kirim ke IbuB tanpa persetujuan
             $dokumen->update([
-                'status' => 'menunggu_approved_pengiriman',     // Universal status
-                'universal_approval_for' => 'ibuB',            // Target penerima
-                'universal_approval_sent_at' => now(),          // Timestamp pengiriman universal
-                'current_handler' => 'ibuA',                   // Tetap di pengirim sampai di-approve
+                'status' => 'sent_to_ibub',                   // Status langsung terkirim
+                'current_handler' => 'ibuB',                  // Pindah handler ke IbuB
+                'sent_to_ibub_at' => now(),                   // Timestamp pengiriman
+                'processed_at' => now(),                      // Timestamp proses oleh IbuB
             ]);
 
             $dokumen->refresh();
@@ -572,7 +572,7 @@ class DokumenController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Dokumen berhasil dikirim ke Daftar Masuk Dokumen IbuB. Menunggu persetujuan pengiriman.'
+                'message' => 'Dokumen berhasil dikirim ke IbuB dan langsung masuk ke daftar dokumen.'
             ]);
 
         } catch (Exception $e) {

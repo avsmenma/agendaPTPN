@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Broadcast;
+use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\diagramController;
 use App\Http\Controllers\DokumenController;
 use App\Http\Controllers\DashboardController;
@@ -14,6 +15,7 @@ use App\Http\Controllers\DokumenRekapanController;
 use App\Http\Controllers\AutocompleteController;
 use App\Http\Controllers\WelcomeMessageController;
 use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\OwnerDashboardController;
 
 /*
 |--------------------------------------------------------------------------
@@ -26,7 +28,7 @@ Route::middleware('guest')->group(function () {
     Route::post('/login', [LoginController::class, 'login'])->name('login.store');
 });
 
-Route::middleware('auth')->group(function () {
+Route::middleware('autologin')->group(function () {
     Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
     Route::get('/dashboard', [LoginController::class, 'dashboard'])->name('dashboard');
 });
@@ -93,34 +95,53 @@ Route::get('/dokumensB/check-updates', function() {
 
 Route::get('/perpajakan/check-updates', [DashboardPerpajakanController::class, 'checkUpdates']);
 Route::get('/akutansi/check-updates', [DashboardAkutansiController::class, 'checkUpdates']);
+Route::get('/pembayaran/check-updates', [DashboardPembayaranController::class, 'checkUpdates']);
 
 
 // Dashboard routes with role protection
 Route::get('dashboard',[DashboardController::class, 'index'])
-    ->middleware('role:Admin,IbuA')
+    ->middleware('autologin', 'role:admin,ibua')
     ->name('dashboard.main');
 
 Route::get('dashboardB',[DashboardBController::class, 'index'])
-    ->middleware('role:Admin,IbuB')
+    ->middleware('autologin', 'role:admin,ibub')
     ->name('dashboard.ibub');
 
 Route::get('dashboardPembayaran',[DashboardPembayaranController::class, 'index'])
-    ->middleware('role:Admin,Pembayaran')
+    ->middleware('autologin', 'role:admin,pembayaran')
     ->name('dashboard.pembayaran');
 
 Route::get('dashboardAkutansi',[DashboardAkutansiController::class, 'index'])
-    ->middleware('role:Admin,Akutansi')
+    ->middleware('autologin', 'role:admin,akutansi')
     ->name('dashboard.akutansi');
 
 Route::get('dashboardPerpajakan',[DashboardPerpajakanController::class, 'index'])
-    ->middleware('role:Admin,Perpajakan')
+    ->middleware('autologin', 'role:admin,perpajakan')
     ->name('dashboard.perpajakan');
 
 // Dashboard for Verifikasi role (future implementation)
 Route::get('dashboardVerifikasi', function() {
     return view('verifikasi.dashboard');
-})->middleware('role:Admin,Verifikasi')
+})->middleware('role:admin,verifikasi')
     ->name('dashboard.verifikasi');
+
+// Owner Dashboard routes (God View)
+Route::get('owner/dashboard', [OwnerDashboardController::class, 'index'])
+    ->middleware('autologin', 'role:admin,owner')
+    ->name('owner.dashboard');
+
+Route::get('owner/api/real-time-updates', [OwnerDashboardController::class, 'getRealTimeUpdates'])
+    ->middleware('autologin', 'role:admin,owner')
+    ->name('owner.api.real-time-updates');
+
+Route::get('owner/api/document-timeline/{id}', [OwnerDashboardController::class, 'getDocumentTimeline'])
+    ->middleware('autologin', 'role:admin,owner')
+    ->name('owner.api.document-timeline');
+
+// Admin shortcut to Owner Dashboard
+Route::get('admin/monitoring', [OwnerDashboardController::class, 'index'])
+    ->middleware('autologin', 'role:admin')
+    ->name('admin.monitoring');
 
 // IbuA Routes (Dokumen)
 Route::get('/dokumens', [DokumenController::class, 'index'])->name('dokumens.index');
@@ -153,7 +174,9 @@ Route::post('/dokumensB/{dokumen}/return-to-department', [DashboardBController::
 Route::post('/dokumensB/{dokumen}/send-back-to-perpajakan', [DashboardBController::class, 'sendBackToPerpajakan'])->name('dokumensB.sendBackToPerpajakan');
 Route::post('/dokumensB/{dokumen}/send-to-next', [DashboardBController::class, 'sendToNextHandler'])->name('dokumensB.sendToNext');
 Route::post('/dokumensB/{dokumen}/send-to-target-department', [DashboardBController::class, 'sendToTargetDepartment'])->name('dokumensB.sendToTargetDepartment');
-Route::post('/dokumensB/{dokumen}/set-deadline', [DashboardBController::class, 'setDeadline'])->name('dokumensB.setDeadline');
+Route::post('/dokumensB/{dokumen}/set-deadline', [DashboardBController::class, 'setDeadline'])
+    ->middleware(['autologin', 'role:ibub,admin'])
+    ->name('dokumensB.setDeadline');
 Route::get('/pengembalian-dokumensB', [DashboardBController::class, 'pengembalian'])->name('pengembalianB.index');
 Route::get('/pengembalian-dokumens-ke-bagian/stats', [DashboardBController::class, 'getPengembalianKeBagianStats'])->name('pengembalianKeBagian.stats');
 Route::get('/pengembalian-dokumens-ke-bidang', [DashboardBController::class, 'pengembalianKeBidang'])->name('pengembalianKeBidang.index');
@@ -163,8 +186,8 @@ Route::post('/dokumensB/{dokumen}/return-to-ibua', [DashboardBController::class,
 Route::post('/dokumensB/{dokumen}/change-status', [DashboardBController::class, 'changeDocumentStatus'])->name('dokumensB.changeStatus');
 Route::get('/diagramB', [DashboardBController::class, 'diagram'])->name('diagramB.index');
 
-// IbuB - Document Approval Routes (NEW)
-Route::middleware(['auth', 'role:ibuB'])->group(function () {
+// IbuB - Document Approval Routes (NEW) - dengan autologin
+Route::middleware(['autologin', 'role:ibub,admin'])->group(function () {
     Route::post('/ibub/dokumen/{dokumen}/accept', [DashboardBController::class, 'acceptDocument'])
         ->name('ibub.dokumen.accept');
 
@@ -175,8 +198,8 @@ Route::middleware(['auth', 'role:ibuB'])->group(function () {
         ->name('ibub.pending.approval');
 });
 
-// Universal Approval Routes - Untuk semua user kecuali IbuA
-Route::middleware(['auth'])->group(function () {
+// Universal Approval Routes - Untuk semua user kecuali IbuA - dengan autologin
+Route::middleware(['autologin'])->group(function () {
     Route::get('/daftar-masuk-dokumen', [\App\Http\Controllers\UniversalApprovalController::class, 'index'])
         ->name('universal.approval.index');
 
@@ -202,6 +225,7 @@ Route::put('/dokumensPembayaran/{dokumen}', [DashboardPembayaranController::clas
 Route::delete('/dokumensPembayaran/{dokumen}', [DashboardPembayaranController::class, 'destroyDokumen'])->name('dokumensPembayaran.destroy');
 Route::get('/pengembalian-dokumensPembayaran', [DashboardPembayaranController::class, 'pengembalian'])->name('pengembalianPembayaran.index');
 Route::get('/rekapan-keterlambatan', [DashboardPembayaranController::class, 'rekapanKeterlambatan'])->name('rekapanKeterlambatan.index');
+Route::get('/rekapan-pembayaran', [DashboardPembayaranController::class, 'rekapan'])->name('pembayaran.rekapan');
 Route::get('/diagramPembayaran', [DashboardPembayaranController::class, 'diagram'])->name('diagramPembayaran.index');
 
 // Akutansi Routes
@@ -212,7 +236,10 @@ Route::get('/dokumensAkutansi/{dokumen}/edit', [DashboardAkutansiController::cla
 Route::get('/dokumensAkutansi/{dokumen}/detail', [DashboardAkutansiController::class, 'getDocumentDetail'])->name('dokumensAkutansi.detail');
 Route::put('/dokumensAkutansi/{dokumen}', [DashboardAkutansiController::class, 'updateDokumen'])->name('dokumensAkutansi.update');
 Route::delete('/dokumensAkutansi/{dokumen}', [DashboardAkutansiController::class, 'destroyDokumen'])->name('dokumensAkutansi.destroy');
-Route::post('/dokumensAkutansi/{dokumen}/set-deadline', [DashboardAkutansiController::class, 'setDeadline'])->name('dokumensAkutansi.setDeadline');
+Route::post('/dokumensAkutansi/{dokumen}/set-deadline', [DashboardAkutansiController::class, 'setDeadline'])
+    ->middleware(['autologin', 'role:akutansi,admin'])
+    ->name('dokumensAkutansi.setDeadline');
+Route::post('/dokumensAkutansi/{dokumen}/send-to-pembayaran', [DashboardAkutansiController::class, 'sendToPembayaran'])->name('dokumensAkutansi.sendToPembayaran');
 Route::get('/pengembalian-dokumensAkutansi', [DashboardAkutansiController::class, 'pengembalian'])->name('pengembalianAkutansi.index');
 Route::get('/rekapan-akutansi', [DashboardAkutansiController::class, 'rekapan'])->name('akutansi.rekapan');
 Route::get('/diagramAkutansi', [DashboardAkutansiController::class, 'diagram'])->name('diagramAkutansi.index');
@@ -316,4 +343,41 @@ Route::get('/test-trigger-notification', function() {
         'document_id' => $dokumen->id,
         'returned_at' => $dokumen->returned_to_ibua_at,
     ]);
+});
+
+// Role Switching Routes - untuk development/testing
+Route::middleware('autologin')->group(function () {
+    // Quick role switching URLs
+    Route::get('/switch-role/{role}', function($role) {
+        // Logout user yang sedang login
+        Auth::logout();
+
+        // Validasi role
+        $validRoles = ['IbuA', 'ibuB', 'Perpajakan', 'Akutansi', 'Pembayaran'];
+        if (!in_array($role, $validRoles)) {
+            $role = 'IbuA'; // Default ke IbuA jika role tidak valid
+        }
+
+        // Redirect dengan parameter role
+        return redirect('/dashboard?role=' . $role);
+    })->name('switch.role');
+
+    // Development dashboard - auto-login berdasarkan parameter
+    Route::get('/dev-dashboard/{role?}', function($role = 'IbuA') {
+        $roleMap = [
+            'IbuA' => '/dashboard',
+            'ibuB' => '/dashboardB',
+            'Perpajakan' => '/dashboardPerpajakan',
+            'Akutansi' => '/dashboardAkutansi',
+            'Pembayaran' => '/dashboardPembayaran'
+        ];
+
+        $url = $roleMap[$role] ?? '/dashboard';
+        return redirect($url . '?role=' . $role);
+    })->name('dev.dashboard');
+
+    // Master development route - semua dashboard dengan role switching
+    Route::get('/dev-all', function() {
+        return view('dev.role-switcher');
+    })->name('dev.all');
 });

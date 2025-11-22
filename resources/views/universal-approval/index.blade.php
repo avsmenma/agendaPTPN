@@ -678,21 +678,18 @@ $(document).ready(function() {
             success: function(response) {
                 console.log('Approve response:', response);
                 if (response.success) {
-                    // Remove row with animation
-                    $row.fadeOut(500, function() {
-                        $(this).remove();
-                        updateDocumentCount();
+                    // Show success message
+                    showAlert(response.message || 'Dokumen berhasil disetujui dan langsung masuk ke daftar dokumen', 'success');
 
-                        // Show success message
-                        showAlert(response.message || 'Dokumen berhasil disetujui', 'success');
-
-                        // Check if table is empty
-                        if ($('#documents-table tbody tr').length === 0) {
-                            setTimeout(function() {
-                                location.reload();
-                            }, 2000);
+                    // Redirect to daftar dokumen setelah success
+                    setTimeout(function() {
+                        if (response.redirect_url) {
+                            window.location.href = response.redirect_url;
+                        } else {
+                            // Fallback ke dashboard jika tidak ada redirect URL
+                            window.location.href = '/dashboard';
                         }
-                    });
+                    }, 1500);
                 } else {
                     showAlert(response.message || 'Gagal menyetujui dokumen', 'danger');
                     $btnGroup.html(originalHtml);

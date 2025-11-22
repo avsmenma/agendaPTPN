@@ -5,6 +5,10 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Dokumen;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
+use App\Helpers\DokumenHelper;
 
 class DashboardAkutansiController extends Controller
 {
@@ -154,6 +158,16 @@ class DashboardAkutansiController extends Controller
             ->orderByDesc('updated_at')
             ->get();
 
+            // Add lock status to each document
+        $dokumens = $dokumens->map(function ($dokumen) {
+            $dokumen->is_locked = DokumenHelper::isDocumentLocked($dokumen);
+            $dokumen->lock_status_message = DokumenHelper::getLockedStatusMessage($dokumen);
+            $dokumen->can_edit = DokumenHelper::canEditDocument($dokumen, 'akutansi');
+            $dokumen->can_set_deadline = DokumenHelper::canSetDeadline($dokumen)['can_set'];
+            $dokumen->lock_status_class = DokumenHelper::getLockStatusClass($dokumen);
+            return $dokumen;
+        });
+
         $data = array(
             "title" => "Daftar Akutansi",
             "module" => "akutansi",
@@ -182,19 +196,138 @@ class DashboardAkutansiController extends Controller
     }
 
     public function editDokumen($id){
+        // Find the document
+        $dokumen = Dokumen::findOrFail($id);
+
+        // Validate that user can edit this document
+        if (!DokumenHelper::canEditDocument($dokumen, 'akutansi')) {
+            return redirect()->route('dokumensAkutansi.index')
+                ->with('error', 'Anda tidak memiliki izin untuk mengedit dokumen ini.');
+        }
+
+        // Load document relationships if needed
+        $dokumen->load(['dokumenPos', 'dokumenPrs']);
+
         $data = array(
             "title" => "Edit Akutansi",
             "module" => "akutansi",
             "menuDashboard" => "",
             'menuDokumen' => 'Active',
             'menuDaftarDokumen' => 'Active',
+            'dokumen' => $dokumen, // Added missing document data
         );
         return view('akutansi.dokumens.editAkutansi', $data);
     }
 
-    public function updateDokumen(Request $request, $id){
-        // Implementation for updating document
-        return redirect()->route('dokumensAkutansi.index')->with('success', 'Akutansi berhasil diperbarui');
+    public function updateDokumen(Request $request, $id): \Illuminate\Http\RedirectResponse
+    {
+        try {
+            // Find the document
+            $dokumen = Dokumen::findOrFail($id);
+
+            // Validate that user can edit this document
+            if (!DokumenHelper::canEditDocument($dokumen, 'akutansi')) {
+                return redirect()->back()
+                    ->with('error', 'Anda tidak memiliki izin untuk mengedit dokumen ini.')
+                    ->withInput();
+            }
+
+            // Enhanced logging
+            Log::info('=== UPDATE DOKUMEN AKUTANSI REQUEST ===', [
+                'document_id' => $dokumen->id,
+                'user_id' => Auth::id(),
+                'user_role' => Auth::user()?->role,
+                'request_data' => $request->except(['_token', '_method'])
+            ]);
+
+            // Validate request data
+            $validated = $request->validate([
+                // MIRO Fields - khusus Akutansi
+                'nomor_miro' => 'nullable|string|max:255',
+
+                // Basic document fields
+                'nomor_agenda' => 'required|string|max:255',
+                'nomor_spp' => 'required|string|max:255',
+                'uraian_spp' => 'required|string|max:1000',
+                'nilai_rupiah' => 'required|numeric|min:0',
+                'tanggal_masuk' => 'nullable|date',
+                'tanggal_spp' => 'nullable|date',
+
+                // Tax fields
+                'status_perpajakan' => 'nullable|string|max:255',
+                'no_faktur' => 'nullable|string|max:255',
+                'tanggal_faktur' => 'nullable|date',
+                'tanggal_selesai_verifikasi_pajak' => 'nullable|date',
+                'jenis_pph' => 'nullable|string|max:50',
+                'dpp_pph' => 'nullable|numeric|min:0',
+                'ppn_terhutang' => 'nullable|numeric|min:0',
+            ], [
+                'nomor_miro.max' => 'Nomor MIRO maksimal 255 karakter.',
+                'nomor_agenda.required' => 'Nomor agenda wajib diisi.',
+                'nomor_spp.required' => 'Nomor SPP wajib diisi.',
+                'uraian_spp.required' => 'Uraian SPP wajib diisi.',
+                'nilai_rupiah.required' => 'Nilai rupiah wajib diisi.',
+                'nilai_rupiah.min' => 'Nilai rupiah tidak boleh negatif.',
+            ]);
+
+            // Prepare update data
+            $updateData = [
+                // MIRO fields
+                'nomor_miro' => $validated['nomor_miro'],
+
+                // Basic fields
+                'nomor_agenda' => $validated['nomor_agenda'],
+                'nomor_spp' => $validated['nomor_spp'],
+                'uraian_spp' => $validated['uraian_spp'],
+                'nilai_rupiah' => $validated['nilai_rupiah'],
+                'tanggal_masuk' => $validated['tanggal_masuk'] ?? $dokumen->tanggal_masuk,
+                'tanggal_spp' => $validated['tanggal_spp'] ?? $dokumen->tanggal_spp,
+
+                // Tax fields
+                'status_perpajakan' => $validated['status_perpajakan'] ?? $dokumen->status_perpajakan,
+                'no_faktur' => $validated['no_faktur'] ?? $dokumen->no_faktur,
+                'tanggal_faktur' => $validated['tanggal_faktur'] ?? $dokumen->tanggal_faktur,
+                'tanggal_selesai_verifikasi_pajak' => $validated['tanggal_selesai_verifikasi_pajak'] ?? $dokumen->tanggal_selesai_verifikasi_pajak,
+                'jenis_pph' => $validated['jenis_pph'] ?? $dokumen->jenis_pph,
+                'dpp_pph' => $validated['dpp_pph'] ?? $dokumen->dpp_pph,
+                'ppn_terhutang' => $validated['ppn_terhutang'] ?? $dokumen->ppn_terhutang,
+            ];
+
+            // Update document using transaction
+            DB::transaction(function () use ($dokumen, $updateData) {
+                $dokumen->update($updateData);
+
+                Log::info('Dokumen Akutansi updated successfully', [
+                    'document_id' => $dokumen->id,
+                    'nomor_agenda' => $dokumen->nomor_agenda,
+                    'nomor_miro' => $dokumen->nomor_miro,
+                    'updated_by' => Auth::user()?->name
+                ]);
+            });
+
+            return redirect()->route('dokumensAkutansi.index')
+                ->with('success', 'Dokumen Akutansi berhasil diperbarui!' .
+                    ($updateData['nomor_miro'] ? ' Nomor MIRO: ' . $updateData['nomor_miro'] : ''));
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            Log::warning('Validation error updating Akutansi document: ' . json_encode($e->errors()));
+
+            return redirect()->back()
+                ->withErrors($e->errors())
+                ->withInput()
+                ->with('error', 'Terdapat kesalahan pada input data.');
+
+        } catch (\Exception $e) {
+            Log::error('Error updating Akutansi document: ' . $e->getMessage(), [
+                'document_id' => $id,
+                'user_id' => Auth::id(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return redirect()->back()
+                ->withInput()
+                ->with('error', 'Terjadi kesalahan sistem: ' . $e->getMessage());
+        }
     }
 
     public function destroyDokumen($id){
@@ -205,48 +338,94 @@ class DashboardAkutansiController extends Controller
     /**
      * Set deadline for Akutansi to unlock document processing
      */
-    public function setDeadline(Request $request, Dokumen $dokumen)
+    public function setDeadline(Request $request, Dokumen $dokumen): JsonResponse
     {
-        // Only allow if document is currently with Akutansi and still locked
-        if ($dokumen->current_handler !== 'akutansi' || $dokumen->deadline_at) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Dokumen tidak valid untuk menetapkan deadline.'
-            ], 403);
-        }
-
-        $validated = $request->validate([
-            'deadline_days' => 'required|integer|min:1|max:14',
-            'deadline_note' => 'nullable|string|max:500',
-        ], [
-            'deadline_days.required' => 'Periode deadline wajib dipilih.',
-            'deadline_days.min' => 'Deadline minimal 1 hari.',
-            'deadline_days.max' => 'Deadline maksimal 14 hari.',
-            'deadline_note.max' => 'Catatan maksimal 500 karakter.',
-        ]);
-
         try {
-            $deadlineDays = (int) $validated['deadline_days'];
-            $deadlineAt = now()->addDays($deadlineDays);
+            // Enhanced logging with user context
+            Log::info('=== SET DEADLINE AKUTANSI REQUEST START ===', [
+                'document_id' => $dokumen->id,
+                'current_handler' => $dokumen->current_handler,
+                'current_status' => $dokumen->status,
+                'deadline_exists' => $dokumen->deadline_at ? true : false,
+                'user_id' => Auth::id(),
+                'user_role' => Auth::user()?->role,
+                'request_data' => $request->all()
+            ]);
 
-            $dokumen->update([
-                'deadline_at' => $deadlineAt,
+            // Use helper for validation
+            $validation = DokumenHelper::canSetDeadline($dokumen);
+            if (!$validation['can_set']) {
+                Log::warning('Deadline set failed - Validation error', [
+                    'document_id' => $dokumen->id,
+                    'user_role' => Auth::user()?->role,
+                    'validation_result' => $validation
+                ]);
+
+                return response()->json([
+                    'success' => false,
+                    'message' => $validation['message'],
+                    'debug_info' => $validation['debug']
+                ], 403);
+            }
+
+            $validated = $request->validate([
+                'deadline_days' => 'required|integer|min:1|max:14',
+                'deadline_note' => 'nullable|string|max:500',
+            ], [
+                'deadline_days.required' => 'Periode deadline wajib dipilih.',
+                'deadline_days.integer' => 'Periode deadline harus berupa angka.',
+                'deadline_days.min' => 'Deadline minimal 1 hari.',
+                'deadline_days.max' => 'Deadline maksimal 14 hari.',
+                'deadline_note.max' => 'Catatan maksimal 500 karakter.',
+            ]);
+
+            $deadlineDays = (int) $validated['deadline_days'];
+            $deadlineNote = isset($validated['deadline_note']) && trim($validated['deadline_note']) !== '' 
+                ? trim($validated['deadline_note']) 
+                : null;
+
+            // Update using transaction
+            DB::transaction(function () use ($dokumen, $deadlineDays, $deadlineNote) {
+                $dokumen->update([
+                    'deadline_at' => now()->addDays($deadlineDays),
+                    'deadline_days' => $deadlineDays,
+                    'deadline_note' => $deadlineNote,
+                    'status' => 'sedang diproses',
+                    'processed_at' => now(),
+                ]);
+            });
+
+            \Log::info('Deadline successfully set for Akutansi', [
+                'document_id' => $dokumen->id,
                 'deadline_days' => $deadlineDays,
-                'deadline_note' => $validated['deadline_note'] ?? null,
-                'status' => 'sedang diproses',
-                'processed_at' => now(),
+                'deadline_at' => $dokumen->fresh()->deadline_at
             ]);
 
             return response()->json([
                 'success' => true,
-                'message' => 'Deadline berhasil ditetapkan. Dokumen sekarang terbuka untuk diproses.',
-                'deadline' => $deadlineAt->format('d M Y, H:i'),
+                'message' => "Deadline berhasil ditetapkan ({$deadlineDays} hari). Dokumen sekarang terbuka untuk diproses.",
+                'deadline' => $dokumen->fresh()->deadline_at->format('d M Y, H:i'),
             ]);
-        } catch (\Exception $e) {
-            \Log::error('Error setting Akutansi deadline: ' . $e->getMessage());
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            \Log::error('Validation error setting Akutansi deadline: ' . json_encode($e->errors()));
             return response()->json([
                 'success' => false,
-                'message' => 'Terjadi kesalahan saat menetapkan deadline.'
+                'message' => 'Validasi gagal: ' . implode(', ', $e->validator->errors()->all())
+            ], 422);
+        } catch (\Illuminate\Database\QueryException $e) {
+            \Log::error('Database query error setting Akutansi deadline: ' . $e->getMessage());
+            \Log::error('SQL: ' . $e->getSql());
+            \Log::error('Bindings: ' . json_encode($e->getBindings()));
+            return response()->json([
+                'success' => false,
+                'message' => 'Terjadi kesalahan database saat menetapkan deadline. Pastikan semua kolom yang diperlukan ada di database.'
+            ], 500);
+        } catch (\Exception $e) {
+            \Log::error('Error setting Akutansi deadline: ' . $e->getMessage());
+            \Log::error('Stack trace: ' . $e->getTraceAsString());
+            return response()->json([
+                'success' => false,
+                'message' => 'Terjadi kesalahan saat menetapkan deadline: ' . $e->getMessage()
             ], 500);
         }
     }
@@ -496,13 +675,70 @@ class DashboardAkutansiController extends Controller
         }
 
         if (filter_var($link, FILTER_VALIDATE_URL)) {
-            return sprintf('<a href="%s" target="_blank" class="tax-link">%s <i class="fa-solid fa-external-link-alt"></i></a>', 
-                htmlspecialchars($link), 
+            return sprintf('<a href="%s" target="_blank" class="tax-link">%s <i class="fa-solid fa-external-link-alt"></i></a>',
+                htmlspecialchars($link),
                 htmlspecialchars($link)
             );
         }
 
         return htmlspecialchars($link);
+    }
+
+    /**
+     * Send document to Pembayaran
+     */
+    public function sendToPembayaran(Dokumen $dokumen)
+    {
+        try {
+            // Validate that document is currently handled by Akutansi
+            if ($dokumen->current_handler !== 'akutansi') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Dokumen tidak valid untuk dikirim. Dokumen tidak sedang ditangani oleh Akutansi.'
+                ], 403);
+            }
+
+            // Check if document is ready for payment (completed by Akutansi)
+            if ($dokumen->status !== 'sedang diproses') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Dokumen harus selesai diproses oleh Akutansi sebelum dikirim ke Pembayaran.'
+                ], 403);
+            }
+
+            // Update document status and handler
+            $dokumen->update([
+                'status' => 'sent_to_pembayaran',
+                'current_handler' => 'pembayaran',
+                'universal_approval_for' => 'pembayaran', // For universal approval system
+            ]);
+
+            // Log the activity
+            \Log::info('Document sent from Akutansi to Pembayaran', [
+                'document_id' => $dokumen->id,
+                'nomor_spp' => $dokumen->nomor_spp,
+                'sent_by' => 'akutansi',
+                'sent_to' => 'pembayaran',
+                'sent_at' => now()
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Dokumen berhasil dikirim ke Pembayaran untuk diproses pembayaran.',
+                'redirect_url' => route('dokumensAkutansi.index')
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('Error sending document from Akutansi to Pembayaran: ' . $e->getMessage(), [
+                'document_id' => $dokumen->id ?? null,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Terjadi kesalahan saat mengirim dokumen ke Pembayaran. Silakan coba lagi.'
+            ], 500);
+        }
     }
 }
 

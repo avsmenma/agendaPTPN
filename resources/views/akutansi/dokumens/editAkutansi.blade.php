@@ -205,33 +205,61 @@
 
 
 <h2 style="margin-bottom: 20px; font-weight: 700;">{{ $title }}</h2>
+
+<!-- Success/Error Messages -->
+@if(session('success'))
+  <div class="alert alert-success" style="margin-bottom: 20px; padding: 12px 16px; border-radius: 8px; background: linear-gradient(135deg, #d1f2eb 0%, #b8e6d3 100%); border: 1px solid #10b981; color: #065f46;">
+    <i class="fa-solid fa-check-circle me-2"></i>{{ session('success') }}
+  </div>
+@endif
+
+@if(session('error'))
+  <div class="alert alert-danger" style="margin-bottom: 20px; padding: 12px 16px; border-radius: 8px; background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%); border: 1px solid #ef4444; color: #991b1b;">
+    <i class="fa-solid fa-exclamation-triangle me-2"></i>{{ session('error') }}
+  </div>
+@endif
+
+@if($errors->any())
+  <div class="alert alert-warning" style="margin-bottom: 20px; padding: 12px 16px; border-radius: 8px; background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%); border: 1px solid #f59e0b; color: #92400e;">
+    <h6><i class="fa-solid fa-exclamation-circle me-2"></i>Terdapat kesalahan pada input:</h6>
+    <ul style="margin: 8px 0 0 0; padding-left: 20px;">
+      @foreach($errors->all() as $error)
+        <li>{{ $error }}</li>
+      @endforeach
+    </ul>
+  </div>
+@endif
+
 <div class="form-container">
 
-  <form>
+  <form method="POST" action="{{ route('dokumensAkutansi.update', $dokumen->id) }}">
+    @csrf
+    @method('PUT')
     <!-- Input Dokumen Baru -->
     <div class="section-title">Edit Dokumen Akutansi</div>
 
     <div class="form-row">
       <div class="form-group">
         <label>Nomor Agenda</label>
-        <input type="text" placeholder="Masukkan nomor agenda" value="001/2025">
+        <input type="text" name="nomor_agenda" placeholder="Masukkan nomor agenda"
+               value="{{ old('nomor_agenda', $dokumen->nomor_agenda) }}" required>
       </div>
       <div class="form-group">
         <label>Bulan</label>
-        <select>
-          <option>Pilih Bulan</option>
-          <option selected>Januari</option>
-          <option>Februari</option>
-          <option>Maret</option>
-          <option>April</option>
-          <option>Mei</option>
-          <option>Juni</option>
-          <option>Juli</option>
-          <option>Agustus</option>
-          <option>September</option>
-          <option>Oktober</option>
-          <option>November</option>
-          <option>Desember</option>
+        <select name="bulan">
+          <option value="">Pilih Bulan</option>
+          <option value="Januari" {{ old('bulan', $dokumen->bulan) == 'Januari' ? 'selected' : '' }}>Januari</option>
+          <option value="Februari" {{ old('bulan', $dokumen->bulan) == 'Februari' ? 'selected' : '' }}>Februari</option>
+          <option value="Maret" {{ old('bulan', $dokumen->bulan) == 'Maret' ? 'selected' : '' }}>Maret</option>
+          <option value="April" {{ old('bulan', $dokumen->bulan) == 'April' ? 'selected' : '' }}>April</option>
+          <option value="Mei" {{ old('bulan', $dokumen->bulan) == 'Mei' ? 'selected' : '' }}>Mei</option>
+          <option value="Juni" {{ old('bulan', $dokumen->bulan) == 'Juni' ? 'selected' : '' }}>Juni</option>
+          <option value="Juli" {{ old('bulan', $dokumen->bulan) == 'Juli' ? 'selected' : '' }}>Juli</option>
+          <option value="Agustus" {{ old('bulan', $dokumen->bulan) == 'Agustus' ? 'selected' : '' }}>Agustus</option>
+          <option value="September" {{ old('bulan', $dokumen->bulan) == 'September' ? 'selected' : '' }}>September</option>
+          <option value="Oktober" {{ old('bulan', $dokumen->bulan) == 'Oktober' ? 'selected' : '' }}>Oktober</option>
+          <option value="November" {{ old('bulan', $dokumen->bulan) == 'November' ? 'selected' : '' }}>November</option>
+          <option value="Desember" {{ old('bulan', $dokumen->bulan) == 'Desember' ? 'selected' : '' }}>Desember</option>
         </select>
       </div>
     </div>
@@ -260,18 +288,20 @@
 
     <div class="form-group">
       <label>Uraian SPP</label>
-      <textarea placeholder="Permintaan permohonan pembayaran...">Permintaan permohonan pembayaran THR Pegawai/Pekerja Harian Lepas (PHL) Bulan Maret sampai dengan Desember 2024</textarea>
+      <textarea name="uraian_spp" placeholder="Permintaan permohonan pembayaran..." rows="3">{{ old('uraian_spp', $dokumen->uraian_spp) }}</textarea>
     </div>
 
     <!-- Nilai Rupiah & Tanggal SPP -->
     <div class="form-row">
       <div class="form-group">
         <label>Nilai Rupiah</label>
-        <input type="text" placeholder="Rp. 123.456" value="Rp. 5.000.000">
+        <input type="number" name="nilai_rupiah" placeholder="0"
+               value="{{ old('nilai_rupiah', $dokumen->nilai_rupiah) }}" required>
       </div>
       <div class="form-group">
         <label>Tanggal SPP</label>
-        <input type="date" value="2025-01-15">
+        <input type="date" name="tanggal_spp"
+               value="{{ old('tanggal_spp', $dokumen->tanggal_spp ? $dokumen->tanggal_spp->format('Y-m-d') : '') }}">
       </div>
     </div>
 
@@ -407,6 +437,26 @@
       <div class="form-group">
         <label>PPh Terhutang</label>
         <input type="text" placeholder="Rp. 0" value="Rp. 225.000">
+      </div>
+    </div>
+
+    <!-- MIRO Section - Khusus Akutansi -->
+    <div class="form-row">
+      <div class="form-group">
+        <label style="color: #083E40; font-weight: 700;">
+          <i class="fa-solid fa-file-invoice-dollar me-2" style="color: #889717;"></i>
+          Nomor MIRO
+        </label>
+        <input type="text"
+               name="nomor_miro"
+               id="nomor_miro"
+               placeholder=""
+               value="{{ old('nomor_miro', $dokumen->nomor_miro ?? '') }}"
+               style="border: 2px solid #889717; background: linear-gradient(135deg, #f8faf8 0%, #ffffff 100%);">
+        <small class="text-muted" style="font-size: 11px;">
+          <i class="fa-solid fa-info-circle me-1"></i>
+          Nomor MIRO wajib diisi untuk proses pembayaran
+        </small>
       </div>
     </div>
 

@@ -51,10 +51,40 @@ search-box .input-group {
   .table-dokumen {
     background: linear-gradient(135deg, #ffffff 0%, #f8faf8 100%);
     border-radius: 16px;
-    overflow-x: auto;
+    padding: 30px;
     box-shadow: 0 8px 32px rgba(8, 62, 64, 0.1), 0 2px 8px rgba(136, 151, 23, 0.05);
     border: 1px solid rgba(8, 62, 64, 0.08);
     position: relative;
+    overflow: hidden;
+  }
+
+  /* Horizontal Scroll Container */
+  .table-responsive {
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(8, 62, 64, 0.3) transparent;
+  }
+
+  .table-responsive::-webkit-scrollbar {
+    height: 12px;
+  }
+
+  .table-responsive::-webkit-scrollbar-track {
+    background: rgba(8, 62, 64, 0.05);
+    border-radius: 6px;
+    margin: 0 20px;
+  }
+
+  .table-responsive::-webkit-scrollbar-thumb {
+    background: linear-gradient(135deg, rgba(8, 62, 64, 0.3), rgba(136, 151, 23, 0.4));
+    border-radius: 6px;
+    border: 2px solid rgba(255, 255, 255, 0.8);
+  }
+
+  .table-responsive::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(135deg, rgba(8, 62, 64, 0.5), rgba(136, 151, 23, 0.6));
   }
 
   /* Enhanced table for better UX */
@@ -94,99 +124,74 @@ search-box .input-group {
     transform: translateY(-1px);
   }
 
-  /* Enhanced Locked State UX */
+  /* Enhanced Locked State UX - Simplified for better readability */
   .table-enhanced tbody tr.locked-row {
-    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-    opacity: 0.85;
+    background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+    opacity: 1;
     position: relative;
-    border-left: 4px solid #ffc107 !important;
-    box-shadow: inset 0 0 0 1px rgba(255, 193, 7, 0.2);
+    border-left: 3px solid #ffc107 !important;
     transition: all 0.3s ease;
+    pointer-events: auto;
   }
 
   .table-enhanced tbody tr.locked-row::before {
-    content: '🔒';
-    position: absolute;
-    top: 50%;
-    left: -2px;
-    transform: translateY(-50%);
-    font-size: 16px;
-    z-index: 2;
-    opacity: 0.7;
-    animation: lock-pulse 2s infinite;
+    display: none; /* Removed lock icon overlay */
   }
 
   .table-enhanced tbody tr.locked-row::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: repeating-linear-gradient(
-      45deg,
-      transparent,
-      transparent 10px,
-      rgba(108, 117, 125, 0.05) 10px,
-      rgba(108, 117, 125, 0.05) 20px
-    );
-    z-index: 1;
-    pointer-events: none;
+    display: none; /* Removed diagonal pattern overlay */
   }
 
   .table-enhanced tbody tr.locked-row:hover {
-    background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
-    transform: translateX(2px);
-    box-shadow: inset 0 0 0 2px rgba(255, 193, 7, 0.4), 0 2px 8px rgba(255, 193, 7, 0.2);
+    background: linear-gradient(135deg, #fffef5 0%, #fff9e6 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(255, 193, 7, 0.1);
+    pointer-events: auto;
   }
 
-  /* Lock animation */
-  @keyframes lock-pulse {
-    0%, 100% {
-      opacity: 0.7;
-      transform: translateY(-50%) scale(1);
-    }
-    50% {
-      opacity: 0.9;
-      transform: translateY(-50%) scale(1.1);
-    }
-  }
+  /* Lock animation - Removed for better readability */
 
-  /* Enhanced locked state indicators */
+  /* Enhanced locked state indicators - Simplified */
   .table-enhanced tbody tr.locked-row .col-status .badge-locked {
-    animation: badge-glow 2s infinite;
     position: relative;
+    z-index: 1;
+    /* Removed animation for better readability */
+  }
+
+  /* Ensure all content in locked row stays above overlay */
+  .table-enhanced tbody tr.locked-row td {
+    position: relative;
+    z-index: 1;
+  }
+
+  .table-enhanced tbody tr.locked-row .btn-action {
+    position: relative;
+    z-index: 1;
+  }
+
+  .table-enhanced tbody tr.locked-row .badge-status {
+    position: relative;
+    z-index: 1;
   }
 
   .table-enhanced tbody tr.locked-row .col-status .badge-locked::before {
-    content: '⚠️';
-    position: absolute;
-    top: -8px;
-    right: -8px;
-    font-size: 10px;
-    animation: warning-bounce 1.5s infinite;
+    display: none; /* Removed warning icon animation */
   }
 
-  /* Enhanced locked button states */
+  /* Enhanced locked button states - Simplified */
   .table-enhanced tbody tr.locked-row .btn-action.locked {
     position: relative;
     overflow: hidden;
+    opacity: 0.6;
   }
 
   .table-enhanced tbody tr.locked-row .btn-action.locked::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
-    animation: button-shimmer 3s infinite;
+    display: none; /* Removed shimmer animation */
   }
 
   .table-enhanced tbody tr.locked-row .btn-action.locked:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 3px 12px rgba(108, 117, 125, 0.3);
+    opacity: 0.7;
+    cursor: not-allowed;
   }
 
   /* Lock hover tooltip enhancement */
@@ -194,22 +199,17 @@ search-box .input-group {
     cursor: not-allowed;
   }
 
-  /* Enhanced deadline column for locked state */
+  /* Enhanced deadline column for locked state - Simplified */
   .table-enhanced tbody tr.locked-row .deadline-empty {
-    background: linear-gradient(135deg, rgba(255, 193, 7, 0.1) 0%, rgba(255, 140, 0, 0.1) 100%);
-    border: 1px dashed rgba(255, 193, 7, 0.3);
+    background: rgba(255, 193, 7, 0.05);
+    border: 1px solid rgba(255, 193, 7, 0.2);
     color: #856404;
-    font-weight: 600;
-    animation: deadline-attention 2s infinite;
+    font-weight: 500;
+    /* Removed animation for better readability */
   }
 
   /* Responsive Locked State Enhancements */
   @media (max-width: 768px) {
-    .table-enhanced tbody tr.locked-row::before {
-      font-size: 14px;
-      left: -5px;
-    }
-
     .table-enhanced tbody tr.locked-row .col-status .badge-locked::before {
       top: -6px;
       right: -6px;
@@ -217,14 +217,12 @@ search-box .input-group {
     }
 
     .table-enhanced tbody tr.locked-row:hover {
-      transform: translateX(1px);
+      transform: translateY(-1px);
     }
   }
 
   @media (max-width: 480px) {
-    .table-enhanced tbody tr.locked-row::before {
-      font-size: 12px;
-    }
+    /* Removed locked-row::before styles */
 
     .table-enhanced tbody tr.locked-row .col-status .badge-locked::before {
       display: none; /* Hide warning icon on very small screens */
@@ -237,41 +235,10 @@ search-box .input-group {
   }
 
   /* Animations for enhanced UX */
-  @keyframes badge-glow {
-    0%, 100% {
-      box-shadow: 0 0 5px rgba(255, 193, 7, 0.5);
-    }
-    50% {
-      box-shadow: 0 0 20px rgba(255, 193, 7, 0.8);
-    }
-  }
-
-  @keyframes warning-bounce {
-    0%, 100% {
-      transform: translateY(0);
-    }
-    50% {
-      transform: translateY(-3px);
-    }
-  }
-
-  @keyframes button-shimmer {
-    0% { left: -100%; }
-    100% { left: 100%; }
-  }
-
-  @keyframes deadline-attention {
-    0%, 100% {
-      opacity: 0.8;
-    }
-    50% {
-      opacity: 1;
-    }
-  }
+  /* Removed animations (badge-glow, warning-bounce) for better readability */
 
   /* Reduced motion support for accessibility */
   @media (prefers-reduced-motion: reduce) {
-    .table-enhanced tbody tr.locked-row::before,
     .table-enhanced tbody tr.locked-row .col-status .badge-locked,
     .table-enhanced tbody tr.locked-row .btn-action.locked::before,
     .table-enhanced tbody tr.locked-row .deadline-empty {
@@ -307,24 +274,87 @@ search-box .input-group {
   /* Mobile optimization */
   @media (max-width: 768px) {
     .table-dokumen {
-      border-radius: 8px;
-      box-shadow: 0 2px 15px rgba(8, 62, 64, 0.05);
+      padding: 15px;
+      border-radius: 12px;
     }
 
     .table-enhanced {
-      min-width: 600px;
+      min-width: 800px;
       font-size: 12px;
     }
 
     .table-enhanced th {
+      padding: 14px 8px;
+      font-size: 11px;
+    }
+
+    .table-enhanced td {
       padding: 12px 8px;
       font-size: 12px;
     }
 
-    .table-enhanced td {
-      padding: 10px 8px;
-      font-size: 12px;
+    .badge-status {
+      padding: 6px 12px;
+      font-size: 11px;
+      min-width: 80px;
     }
+
+    .action-buttons {
+      gap: 4px;
+    }
+
+    .btn-action {
+      min-width: 40px;
+      min-height: 40px;
+      padding: 6px 10px;
+      font-size: 10px;
+    }
+
+    .btn-action span {
+      font-size: 9px;
+    }
+
+    .search-box {
+      padding: 15px;
+      margin-bottom: 15px;
+    }
+
+    /* Enhanced mobile horizontal scroll */
+    .table-responsive {
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none; /* Hide scrollbar on mobile */
+    }
+
+    .table-responsive::-webkit-scrollbar {
+      display: none;
+    }
+
+    /* Add scroll hint for mobile */
+    .table-responsive::after {
+      content: '→ Swipe to see more →';
+      position: absolute;
+      bottom: 10px;
+      right: 10px;
+      background: rgba(8, 62, 64, 0.8);
+      color: white;
+      padding: 5px 10px;
+      border-radius: 15px;
+      font-size: 10px;
+      z-index: 5;
+      animation: fadeInOut 3s infinite;
+    }
+  }
+
+  @media (max-width: 576px) {
+    .table-enhanced {
+      min-width: 900px; /* Still allow horizontal scroll on very small screens */
+    }
+  }
+
+  @keyframes fadeInOut {
+    0%, 100% { opacity: 0.3; }
+    50% { opacity: 1; }
+  }
 
     .table-enhanced .col-no { width: 60px; min-width: 60px; }
     .table-enhanced .col-surat { width: 80px; min-width: 80px; }
@@ -636,24 +666,17 @@ search-box .input-group {
     transition: all 0.3s ease;
   }
 
-  /* State 1: 🔒 Terkunci (Locked - Waiting for Deadline) */
+  /* State 1: 🔒 Terkunci (Locked - Waiting for Deadline) - Simplified */
   .badge-status.badge-locked {
     background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
     color: white;
     border-color: #495057;
     position: relative;
-    overflow: hidden;
+    /* Removed overflow and animation for better readability */
   }
 
   .badge-status.badge-locked::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
-    animation: shimmer 2s infinite;
+    display: none; /* Removed shimmer animation */
   }
 
   /* State 2: ⏳ Diproses (In Progress) */
@@ -751,7 +774,7 @@ search-box .input-group {
     border-radius: 12px;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
     border: 1px solid rgba(0, 0, 0, 0.1);
-    z-index: 9999;
+    z-index: 5;
     min-width: 160px;
     margin-top: 4px;
     opacity: 0;
@@ -778,7 +801,7 @@ search-box .input-group {
     border-radius: 12px !important;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25) !important;
     border: 1px solid rgba(0, 0, 0, 0.2) !important;
-    z-index: 99999 !important;
+    z-index: 5 !important;
     min-width: 160px !important;
     margin-top: 4px !important;
   }
@@ -1462,8 +1485,9 @@ search-box .input-group {
 </div>
 
 <!-- Tabel Dokumen -->
-<div class="table-responsive table-container">
-  <table class="table table-enhanced mb-0">
+<div class="table-dokumen">
+  <div class="table-responsive table-container">
+    <table class="table table-enhanced mb-0">
     <thead>
       <tr>
         <th class="col-no sticky-column">No</th>
@@ -1680,6 +1704,7 @@ search-box .input-group {
       @endforelse
     </tbody>
   </table>
+  </div>
 </div>
 
 <!-- Pagination -->
@@ -2578,15 +2603,31 @@ function confirmSetDeadline() {
   submitBtn.disabled = true;
   submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-2"></i>Menetapkan...';
 
-  // Check CSRF token availability
-  const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+  // Get CSRF token from meta tag or hidden input
+  let csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+
+  // Fallback to hidden input if meta tag not found
   if (!csrfToken) {
-    console.error('CSRF token not found!');
+    const hiddenInput = document.querySelector('input[name="_token"]');
+    if (hiddenInput) {
+      csrfToken = hiddenInput.value;
+    }
+  }
+
+  // Fallback to Laravel's global csrf_token() if available in window
+  if (!csrfToken && typeof window.Laravel !== 'undefined' && window.Laravel.csrfToken) {
+    csrfToken = window.Laravel.csrfToken;
+  }
+
+  if (!csrfToken) {
+    console.error('CSRF token not found in any location!');
     alert('CSRF token tidak ditemukan. Silakan refresh halaman.');
     submitBtn.disabled = false;
     submitBtn.innerHTML = originalHTML;
     return;
   }
+
+  console.log('CSRF Token found:', csrfToken.substring(0, 20) + '...');
 
   // Type casting untuk memastikan integer
   const deadlineDaysInt = parseInt(deadlineDays);
@@ -2610,12 +2651,34 @@ function confirmSetDeadline() {
       deadline_note: deadlineNote
     })
   })
-  .then(response => {
+  .then(async response => {
     console.log('Response status:', response.status);
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+    
+    // Try to parse response as JSON first
+    let responseData;
+    try {
+      responseData = await response.json();
+    } catch (e) {
+      // If response is not JSON, create error object
+      responseData = {
+        success: false,
+        message: `Server error: ${response.status} ${response.statusText}`
+      };
     }
-    return response.json();
+    
+    if (!response.ok) {
+      // Extract error message from response
+      const errorMessage = responseData.message || responseData.error || `HTTP error! status: ${response.status}`;
+      
+      // Log debug info if available
+      if (responseData.debug_info) {
+        console.error('Debug info:', responseData.debug_info);
+      }
+      
+      throw new Error(errorMessage);
+    }
+    
+    return responseData;
   })
   .then(data => {
     console.log('Response data:', data);
@@ -2631,6 +2694,8 @@ function confirmSetDeadline() {
       if (data.deadline) {
         successMessageEl.textContent = 
           `Deadline: ${data.deadline}. Dokumen sekarang terbuka untuk diproses.`;
+      } else {
+        successMessageEl.textContent = data.message || 'Deadline berhasil ditetapkan.';
       }
       
       // Reload page when modal is closed
@@ -2640,7 +2705,7 @@ function confirmSetDeadline() {
       
       successModal.show();
     } else {
-      alert('Gagal menetapkan deadline: ' + data.message);
+      alert('Gagal menetapkan deadline: ' + (data.message || 'Terjadi kesalahan yang tidak diketahui'));
       submitBtn.disabled = false;
       submitBtn.innerHTML = originalHTML;
     }

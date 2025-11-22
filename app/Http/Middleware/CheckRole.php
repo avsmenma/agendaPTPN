@@ -41,13 +41,18 @@ final class CheckRole
         /** @var \App\Models\User $user */
         $user = Auth::user();
 
-        // Check if user has the required role
-        if (empty($roles) || !in_array($user->role, $roles, true)) {
+        // Check if user has the required role (case-insensitive)
+        $userRole = strtolower($user->role);
+        $requiredRoles = array_map('strtolower', $roles);
+
+        if (empty($roles) || !in_array($userRole, $requiredRoles, true)) {
             Log::warning('Unauthorized access attempt', [
                 'user_id' => $user->id,
                 'username' => $user->username,
                 'user_role' => $user->role,
+                'user_role_lower' => $userRole,
                 'required_roles' => $roles,
+                'required_roles_lower' => $requiredRoles,
                 'path' => $request->path(),
                 'ip' => $request->ip(),
             ]);
@@ -69,6 +74,8 @@ final class CheckRole
             'user_id' => $user->id,
             'username' => $user->username,
             'role' => $user->role,
+            'role_lower' => $userRole,
+            'required_roles' => $roles,
             'path' => $request->path(),
         ]);
 

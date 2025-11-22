@@ -64,26 +64,28 @@ class UniversalApprovalController extends Controller
 
             DB::beginTransaction();
 
-            // Update dokumen status
+            // Update dokumen status - langsung masuk ke daftar dokumen
             $dokumen->update([
-                'status' => 'approved_data_sudah_terkirim',
-                'universal_approval_responded_at' => now(),
-                'universal_approval_responded_by' => $userRole,
+                'status' => 'sedang_diproses', // Status untuk dokumen yang sudah masuk ke daftar
+                'universal_approval_for' => $userRole, // Universal approval untuk user role ini
                 'current_handler' => $userRole, // Pindah ke handler yang approve
+                'updated_at' => now(), // Update timestamp untuk tracking
             ]);
 
             // Log activity
-            Log::info("Document approved", [
+            Log::info("Document approved and added to daftar dokumen", [
                 'document_id' => $dokumen->id,
                 'approved_by' => $userRole,
-                'nomor_agenda' => $dokumen->nomor_agenda
+                'nomor_agenda' => $dokumen->nomor_agenda,
+                'module' => $userRole
             ]);
 
             DB::commit();
 
             return response()->json([
                 'success' => true,
-                'message' => "Dokumen {$dokumen->nomor_agenda} berhasil disetujui dan telah masuk ke daftar dokumen Anda"
+                'message' => "Dokumen {$dokumen->nomor_agenda} berhasil disetujui dan telah langsung masuk ke daftar dokumen {$userRole}",
+                'redirect_url' => $this->getRedirectUrl($userRole)
             ]);
 
         } catch (\Exception $e) {
@@ -244,50 +246,29 @@ class UniversalApprovalController extends Controller
 
     /**
      * Check untuk notification badge (AJAX endpoint)
+     * Note: deprecated since documents are sent directly without approval
      */
     public function checkNotifications()
     {
-        try {
-            $currentUser = auth()->user();
-            $userRole = $this->getUserRole($currentUser);
+        // No more waiting approvals since documents are sent directly
+        return response()->json([
+            'count' => 0,
+            'documents' => []
+        ]);
+    }
 
-            if (!$userRole || $userRole === 'ibuA') {
-                return response()->json([
-                    'count' => 0,
-                    'documents' => []
-                ]);
-            }
+    /**
+     * Get redirect URL based on user role
+     */
+    private function getRedirectUrl($userRole)
+    {
+        $redirectUrls = [
+            'ibuB' => '/dokumensb',
+            'perpajakan' => '/dokumensPerpajakan',
+            'akutansi' => '/akutansi',
+            'pembayaran' => '/daftarPembayaran',
+        ];
 
-            $count = Dokumen::where('universal_approval_for', $userRole)
-                ->where('status', 'menunggu_approved_pengiriman')
-                ->count();
-
-            $documents = Dokumen::where('universal_approval_for', $userRole)
-                ->where('status', 'menunggu_approved_pengiriman')
-                ->latest('universal_approval_sent_at')
-                ->take(5)
-                ->get()
-                ->map(function($doc) {
-                    return [
-                        'id' => $doc->id,
-                        'nomor_agenda' => $doc->nomor_agenda,
-                        'pengirim' => $doc->getSenderDisplayName(),
-                        'dikirim_pada' => $doc->universal_approval_sent_at?->diffForHumans(),
-                    ];
-                });
-
-            return response()->json([
-                'count' => $count,
-                'documents' => $documents
-            ]);
-
-        } catch (\Exception $e) {
-            Log::error('Error checking notifications: ' . $e->getMessage());
-
-            return response()->json([
-                'count' => 0,
-                'documents' => []
-            ], 500);
-        }
+        return $redirectUrls[$userRole] ?? '/dashboard';
     }
 }

@@ -1,13 +1,22 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use Illuminate\Http\JsonResponse;
+use App\Http\Requests\SetDeadlineRequest;
 use App\Models\Dokumen;
 use App\Models\DokumenPO;
 use App\Models\DokumenPR;
 use App\Models\Bidang;
 use App\Events\DocumentReturned;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Database\QueryException;
+use Illuminate\Validation\ValidationException;
 
 class DashboardBController extends Controller
 {
@@ -53,7 +62,12 @@ class DashboardBController extends Controller
                   ->orWhereIn('status', ['sent_to_perpajakan', 'sent_to_akutansi']);
             })
             ->where('status', '!=', 'returned_to_bidang')
-            ->latest('sent_to_ibub_at')
+            ->orderByRaw("CASE
+                WHEN current_handler = 'ibuB' AND status IN ('sent_to_ibub', 'sedang diproses') THEN 1
+                WHEN current_handler = 'ibuB' THEN 2
+                ELSE 3
+            END ASC")
+            ->orderBy('updated_at', 'desc')
             ->take(5)
             ->get();
 
@@ -75,23 +89,35 @@ class DashboardBController extends Controller
 
     public function dokumens(Request $request){
         // IbuB sees:
-        // 1. Documents with current_handler = ibuB (active documents)
-        // 2. Documents that were sent to perpajakan/akutansi (for tracking)
+        // 1. Documents with current_handler = ibuB (active documents) - including approved via universal approval
+        // 2. Documents with status sedang_diproses and current_handler = ibuB (from universal approval)
+        // 3. Documents that were sent to perpajakan/akutansi (for tracking)
         // Exclude documents that are returned to bidang (they should appear in pengembalian ke bidang page)
-        // EXCLUDE pending approval documents dari list (TASK 10)
+        // Exclude pending approval documents (they should use daftar masuk dokumen)
         // Optimized query - only load essential columns for list view
         $query = Dokumen::where(function($q) {
                 $q->where('current_handler', 'ibuB')
+                  ->orWhere(function($subQ) {
+                      $subQ->where('status', 'sedang_diproses')
+                            ->where('current_handler', 'ibuB');
+                  })
                   ->orWhereIn('status', ['sent_to_perpajakan', 'sent_to_akutansi']);
             })
             ->where('status', '!=', 'returned_to_bidang')
-            ->where('status', 'NOT LIKE', 'pending_approval%')  // NEW: exclude pending
-            ->latest('sent_to_ibub_at')
+            ->orderByRaw("
+                CASE
+                    WHEN status = 'sedang_diproses' AND current_handler = 'ibuB' THEN 1
+                    WHEN current_handler = 'ibuB' THEN 2
+                    ELSE 3
+                END ASC,
+                COALESCE(sent_to_ibub_at, updated_at, created_at) DESC
+            ")
             ->select([
                 'id', 'nomor_agenda', 'nomor_spp', 'uraian_spp', 'nilai_rupiah',
                 'status', 'created_at', 'sent_to_ibub_at', 'tanggal_masuk', 'tanggal_spp',
                 'keterangan', 'alasan_pengembalian', 'deadline_at', 'deadline_days', 'deadline_note',
-                'current_handler', 'bulan', 'tahun', 'kategori', 'jenis_dokumen'
+                'current_handler', 'bulan', 'tahun', 'kategori', 'jenis_dokumen',
+                'updated_at'
             ]);
 
         // Search functionality - optimized with index-friendly queries
@@ -315,29 +341,77 @@ class DashboardBController extends Controller
     /**
      * Get document detail for AJAX request
      */
-    public function getDocumentDetail(Dokumen $dokumen)
+    public function getDocumentDetail(Dokumen $dokumen): \Illuminate\Http\Response
     {
-        // Allow access if document was handled by ibuB or sent from ibuB
-        $allowedHandlers = ['ibuB', 'perpajakan', 'akutansi'];
-        $allowedStatuses = ['sent_to_ibub', 'sent_to_perpajakan', 'sent_to_akutansi', 'approved_ibub', 'returned_to_department', 'returned_to_bidang'];
+        try {
+            Log::info('Accessing document detail', [
+                'document_id' => $dokumen->id,
+                'current_handler' => $dokumen->current_handler,
+                'status' => $dokumen->status,
+                'user_agent' => request()->userAgent(),
+            ]);
 
-        if (!in_array($dokumen->current_handler, $allowedHandlers) && !in_array($dokumen->status, $allowedStatuses)) {
-            return response('<div class="text-center p-4 text-danger">Access denied</div>', 403);
+            // Allow access if document was handled by ibuB or sent from ibuB
+            $allowedHandlers = ['ibuB', 'perpajakan', 'akutansi'];
+            $allowedStatuses = ['sent_to_ibub', 'sent_to_perpajakan', 'sent_to_akutansi', 'approved_ibub', 'returned_to_department', 'returned_to_bidang'];
+
+            if (!in_array($dokumen->current_handler, $allowedHandlers) && !in_array($dokumen->status, $allowedStatuses)) {
+                Log::warning('Access denied for document detail', [
+                    'document_id' => $dokumen->id,
+                    'current_handler' => $dokumen->current_handler,
+                    'status' => $dokumen->status,
+                ]);
+
+                return response('<div class="text-center p-4 text-danger">Access denied</div>', 403);
+            }
+
+            // Load required relationships with error handling
+            try {
+                $dokumen->load(['dokumenPos', 'dokumenPrs', 'dibayarKepadas']);
+            } catch (\Exception $e) {
+                Log::error('Failed to load document relationships', [
+                    'document_id' => $dokumen->id,
+                    'error' => $e->getMessage(),
+                ]);
+
+                return response('<div class="text-center p-4 text-danger">Error loading document data</div>', 500);
+            }
+
+            // Generate HTML with error handling
+            try {
+                $html = $this->generateDocumentDetailHtml($dokumen);
+            } catch (\Exception $e) {
+                Log::error('Failed to generate document detail HTML', [
+                    'document_id' => $dokumen->id,
+                    'error' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString(),
+                ]);
+
+                return response('<div class="text-center p-4 text-danger">Error generating document view</div>', 500);
+            }
+
+            Log::info('Document detail generated successfully', [
+                'document_id' => $dokumen->id,
+                'html_length' => strlen($html),
+            ]);
+
+            return response($html);
+
+        } catch (\Exception $e) {
+            Log::error('Unexpected error in getDocumentDetail', [
+                'document_id' => $dokumen->id ?? 'unknown',
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response('<div class="text-center p-4 text-danger">Unexpected error occurred</div>', 500);
         }
-
-        // Load required relationships
-        $dokumen->load(['dokumenPos', 'dokumenPrs', 'dibayarKepadas']);
-
-        // Return HTML partial for detail view - generate inline HTML
-        $html = $this->generateDocumentDetailHtml($dokumen);
-
-        return response($html);
     }
 
     /**
      * Generate HTML for document detail
      */
-    private function generateDocumentDetailHtml($dokumen)
+    private function generateDocumentDetailHtml($dokumen): string
     {
         $html = '<div class="detail-grid">';
 
@@ -371,30 +445,30 @@ class DashboardBController extends Controller
                     <span class="detail-label">%s</span>
                     <span class="detail-value">%s</span>
                 </div>',
-                htmlspecialchars($label),
-                htmlspecialchars($value)
+                htmlspecialchars($label, ENT_QUOTES, 'UTF-8'),
+                htmlspecialchars($this->escapeHtml($value), ENT_QUOTES, 'UTF-8')
             );
         }
 
         // No PO
         $poHtml = $dokumen->dokumenPos->count() > 0
-            ? htmlspecialchars($dokumen->dokumenPos->pluck('nomor_po')->join(', '))
+            ? $this->escapeHtml($dokumen->dokumenPos->pluck('nomor_po')->join(', '))
             : '-';
         $html .= sprintf('
             <div class="detail-item">
                 <span class="detail-label">No PO</span>
                 <span class="detail-value">%s</span>
-            </div>', $poHtml);
+            </div>', htmlspecialchars($poHtml, ENT_QUOTES, 'UTF-8'));
 
         // No PR
         $prHtml = $dokumen->dokumenPrs->count() > 0
-            ? htmlspecialchars($dokumen->dokumenPrs->pluck('nomor_pr')->join(', '))
+            ? $this->escapeHtml($dokumen->dokumenPrs->pluck('nomor_pr')->join(', '))
             : '-';
         $html .= sprintf('
             <div class="detail-item">
                 <span class="detail-label">No PR</span>
                 <span class="detail-value">%s</span>
-            </div>', $prHtml);
+            </div>', htmlspecialchars($prHtml, ENT_QUOTES, 'UTF-8'));
 
         // Status badge
         $statusBadge = '';
@@ -428,8 +502,8 @@ class DashboardBController extends Controller
                         <span class="detail-label">%s</span>
                         <span class="detail-value">%s</span>
                     </div>',
-                    htmlspecialchars($label),
-                    htmlspecialchars($value)
+                    htmlspecialchars($label, ENT_QUOTES, 'UTF-8'),
+                    htmlspecialchars($this->escapeHtml($value), ENT_QUOTES, 'UTF-8')
                 );
             }
         }
@@ -442,11 +516,11 @@ class DashboardBController extends Controller
                     <span class="detail-value">
                         <strong>%s</strong>
                         <br>
-                        <small style="color: #666;">(%d hari dari pengiriman)</small>
+                        <small style="color: #666;">(%s hari dari pengiriman)</small>
                     </span>
                 </div>',
-                htmlspecialchars($dokumen->deadline_at->format('d M Y, H:i')),
-                $dokumen->deadline_days
+                htmlspecialchars($dokumen->deadline_at->format('d M Y, H:i'), ENT_QUOTES, 'UTF-8'),
+                htmlspecialchars($this->escapeHtml($dokumen->deadline_days), ENT_QUOTES, 'UTF-8')
             );
         }
 
@@ -456,7 +530,7 @@ class DashboardBController extends Controller
                     <span class="detail-label">Catatan Deadline</span>
                     <span class="detail-value" style="font-style: italic; color: #666;">%s</span>
                 </div>',
-                htmlspecialchars($dokumen->deadline_note)
+                htmlspecialchars($this->escapeHtml($dokumen->deadline_note), ENT_QUOTES, 'UTF-8')
             );
         }
 
@@ -710,76 +784,124 @@ class DashboardBController extends Controller
     /**
      * Set deadline for document verification
      */
-    public function setDeadline(Dokumen $dokumen, Request $request)
+    public function setDeadline(Dokumen $dokumen, SetDeadlineRequest $request): JsonResponse
     {
+        $validatedData = $request->validated();
+
         try {
-            // Detailed logging for debugging
-            \Log::info('=== SET DEADLINE REQUEST DEBUG ===');
-            \Log::info('Document ID: ' . $dokumen->id);
-            \Log::info('Current document status: ' . $dokumen->status);
-            \Log::info('Current handler: ' . $dokumen->current_handler);
-            \Log::info('Deadline at: ' . ($dokumen->deadline_at ? $dokumen->deadline_at->format('Y-m-d H:i:s') : 'NULL'));
-            \Log::info('Request data: ' . json_encode($request->all()));
-            \Log::info('Request headers: ' . json_encode($request->headers->all()));
-
-            // Validasi hanya untuk dokumen yang statusnya sent_to_ibub dan belum ada deadline
-            if ($dokumen->current_handler !== 'ibuB' || $dokumen->deadline_at || !in_array($dokumen->status, ['sent_to_ibub'])) {
-                \Log::warning('Document validation failed - Current handler: ' . $dokumen->current_handler . ', Status: ' . $dokumen->status . ', Deadline: ' . ($dokumen->deadline_at ? 'EXISTS' : 'NULL'));
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Dokumen tidak valid untuk menetapkan deadline. Status dokumen mungkin sudah berubah.'
-                ]);
-            }
-
-            \Log::info('Starting validation...');
-            $validatedData = $request->validate([
-                'deadline_days' => 'required|integer|min:1|max:3',
-                'deadline_note' => 'nullable|string|max:500'
-            ], [
-                'deadline_days.required' => 'Periode deadline wajib dipilih',
-                'deadline_days.min' => 'Deadline minimal 1 hari',
-                'deadline_days.max' => 'Deadline maksimal 3 hari',
-                'deadline_note.max' => 'Catatan maksimal 500 karakter'
+            // Enhanced logging with user context
+            Log::info('=== SET DEADLINE REQUEST START ===', [
+                'document_id' => $dokumen->id,
+                'current_handler' => $dokumen->current_handler,
+                'current_status' => $dokumen->status,
+                'deadline_exists' => $dokumen->deadline_at ? true : false,
+                'user_id' => Auth::id(),
+                'user_role' => Auth::user()?->role,
+                'request_data' => $validatedData
             ]);
 
-            \Log::info('Validation passed. Validated data: ' . json_encode($validatedData));
+            // Validasi status dokumen
+            if ($dokumen->current_handler !== 'ibuB') {
+                Log::warning('Deadline set failed - Invalid current handler', [
+                    'document_id' => $dokumen->id,
+                    'expected_handler' => 'ibuB',
+                    'actual_handler' => $dokumen->current_handler,
+                    'user_role' => Auth::user()?->role
+                ]);
 
-            // Update dokumen dengan deadline
-            \Log::info('Updating document...');
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Dokumen tidak valid untuk menetapkan deadline. Dokumen harus berada di IbuB.',
+                    'debug_info' => [
+                        'current_handler' => $dokumen->current_handler,
+                        'expected_handler' => 'ibuB'
+                    ]
+                ], 403);
+            }
 
-            // Type casting untuk memastikan integer
-            $deadlineDays = (int) $request->deadline_days;
+            if ($dokumen->deadline_at) {
+                Log::warning('Deadline set failed - Deadline already exists', [
+                    'document_id' => $dokumen->id,
+                    'existing_deadline' => $dokumen->deadline_at,
+                    'user_role' => Auth::user()?->role
+                ]);
+
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Dokumen sudah memiliki deadline. Deadline tidak dapat diubah.',
+                    'debug_info' => [
+                        'existing_deadline' => $dokumen->deadline_at
+                    ]
+                ], 403);
+            }
+
+            $validStatuses = ['sent_to_ibub', 'approved_data_sudah_terkirim', 'menunggu_approved_pengiriman'];
+            if (!in_array($dokumen->status, $validStatuses)) {
+                Log::warning('Deadline set failed - Invalid document status', [
+                    'document_id' => $dokumen->id,
+                    'current_status' => $dokumen->status,
+                    'valid_statuses' => $validStatuses,
+                    'user_role' => Auth::user()?->role
+                ]);
+
+                return response()->json([
+                    'success' => false,
+                    'message' => "Status dokumen tidak valid. Status saat ini: {$dokumen->status}.",
+                    'debug_info' => [
+                        'current_status' => $dokumen->status,
+                        'valid_statuses' => $validStatuses
+                    ]
+                ], 403);
+            }
+
+            // Prepare update data
+            $deadlineDays = (int) $validatedData['deadline_days'];
+            $deadlineNote = $validatedData['deadline_note'] ?? null;
 
             $updateData = [
                 'deadline_at' => now()->addDays($deadlineDays),
                 'deadline_days' => $deadlineDays,
-                'deadline_note' => $request->deadline_note,
+                'deadline_note' => $deadlineNote,
                 'status' => 'sedang diproses',
-                'processed_at' => now()
+                'processed_at' => now(),
             ];
 
-            \Log::info('Update data: ' . json_encode($updateData));
-            \Log::info('Deadline days type: ' . gettype($deadlineDays) . ' value: ' . $deadlineDays);
-            $result = $dokumen->update($updateData);
-            \Log::info('Update result: ' . ($result ? 'SUCCESS' : 'FAILED'));
+            // Update using transaction
+            DB::transaction(function () use ($dokumen, $updateData) {
+                $dokumen->update($updateData);
+            });
 
-            \Log::info("Deadline set for document {$dokumen->id}: {$request->deadline_days} days");
+            Log::info('Deadline successfully set', [
+                'document_id' => $dokumen->id,
+                'deadline_days' => $deadlineDays,
+                'deadline_at' => $dokumen->fresh()->deadline_at,
+            ]);
 
             return response()->json([
                 'success' => true,
-                'message' => "Deadline berhasil ditetapkan ({$request->deadline_days} hari). Dokumen sekarang terbuka untuk diproses."
+                'message' => "Deadline berhasil ditetapkan ({$deadlineDays} hari). Dokumen sekarang terbuka untuk diproses.",
+                'deadline' => $dokumen->fresh()->deadline_at?->format('d-m-Y H:i'),
             ]);
 
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            \Log::error('Validation error setting deadline: ' . json_encode($e->errors()));
-            $errors = $e->validator->errors()->all();
+        } catch (QueryException $e) {
+            Log::error('Database error setting deadline', [
+                'document_id' => $dokumen->id,
+                'error' => $e->getMessage(),
+                'sql' => $e->getSql(),
+                'bindings' => $e->getBindings(),
+            ]);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Validasi gagal: ' . implode(', ', $errors)
-            ], 422);
+                'message' => 'Terjadi kesalahan database saat menetapkan deadline.'
+            ], 500);
+
         } catch (\Exception $e) {
-            \Log::error('Error setting deadline: ' . $e->getMessage());
-            \Log::error('Stack trace: ' . $e->getTraceAsString());
+            Log::error('Unexpected error setting deadline', [
+                'document_id' => $dokumen->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
 
             return response()->json([
                 'success' => false,
@@ -1535,6 +1657,47 @@ class DashboardBController extends Controller
                 'returned_to_ibua' => $query->where('status', 'returned_to_ibua')->count(),
             ]
         ];
+    }
+
+    /**
+     * Helper method to safely escape HTML content with type casting
+     */
+    private function escapeHtml(mixed $value): string
+    {
+        // Handle different data types safely
+        if (is_null($value)) {
+            return '-';
+        }
+
+        if (is_string($value)) {
+            return $value;
+        }
+
+        if (is_numeric($value)) {
+            // Format numbers nicely
+            if (is_int($value)) {
+                return (string) $value;
+            }
+
+            // Handle floating point numbers with proper formatting
+            return number_format($value, 2, '.', ',');
+        }
+
+        if (is_bool($value)) {
+            return $value ? 'Yes' : 'No';
+        }
+
+        if ($value instanceof \DateTimeInterface) {
+            return $value->format('d/m/Y H:i:s');
+        }
+
+        // Handle arrays and objects by converting to string representation
+        if (is_array($value) || is_object($value)) {
+            return json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        }
+
+        // Fallback: cast to string
+        return (string) $value;
     }
 }
 

@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 
 class Dokumen extends Model
 {
@@ -32,6 +33,7 @@ class Dokumen extends Model
         'tanggal_spk',
         'tanggal_berakhir_spk',
         'nomor_mirror',
+        'nomor_miro',
         'status',
         'keterangan',
         'alasan_pengembalian',
@@ -134,6 +136,11 @@ class Dokumen extends Model
     public function dibayarKepadas(): HasMany
     {
         return $this->hasMany(DibayarKepada::class);
+    }
+
+    public function documentTrackings(): HasMany
+    {
+        return $this->hasMany(DocumentTracking::class, 'document_id');
     }
 
     /**

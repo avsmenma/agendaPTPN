@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="csrf-token" content="{{ csrf_token() }}">
-  <title>{{ $title }}</title>
+  <title>{{ $title ?? 'PTPN Agenda Online' }}</title>
 
   <!-- Bootstrap 5 -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -441,6 +441,20 @@
       background: linear-gradient(135deg, #889717 0%, #9ab01f 100%) !important;
     }
 
+    /* Notification styles for pembayaran documents */
+    .notification-pembayaran {
+      border-left: 4px solid #083E40 !important;
+      background: linear-gradient(135deg, #083E40 0%, #0a4f52 50%, #889717 100%) !important;
+    }
+
+    .notification-pembayaran .notification-header {
+      border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .notification-header-pembayaran {
+      background: linear-gradient(135deg, #083E40 0%, #0a4f52 50%, #889717 100%) !important;
+    }
+
     /* Notification styles for new documents */
     .notification-new {
       border-left: 4px solid #28a745 !important;
@@ -617,6 +631,13 @@
 
         <a href="{{ url($dashboardUrl) }}" class="{{ $menuDashboard ?? '' }}"><i class="fa-solid fa-house"></i> Home</a>
 
+    <!-- Owner Dashboard - Only for Admin users -->
+    @if(auth()->check() && (auth()->user()->role === 'Admin' || auth()->user()->role === 'admin'))
+        <a href="{{ url('/owner/dashboard') }}" class="nav-link">
+            <i class="fa-solid fa-satellite-dish"></i> Owner Dashboard
+        </a>
+    @endif
+
     <!-- Universal Daftar Masuk Dokumen - Untuk semua user kecuali IbuA -->
     @php
         $currentUserRole = 'IbuA'; // Default
@@ -639,14 +660,7 @@
         }
     @endphp
 
-    @if($currentUserRole !== 'ibuA')
-        <a href="{{ url('/daftar-masuk-dokumen') }}" class="{{ request()->routeIs('universal.approval.*') ? 'active' : '' }}">
-            <i class="fa-solid fa-inbox"></i>
-            Daftar Masuk Dokumen
-            <span class="notification-badge" id="universal-notification-badge" style="display: none;">0</span>
-        </a>
-    @endif
-
+    
     <!-- Dropdown Menu Dokumen - Customized per Module -->
     <div class="dropdown-menu-custom">
       <div class="dropdown-toggle {{ $menuDokumen ?? '' }}" id="dokumenDropdown">
@@ -666,7 +680,7 @@
       <div class="dropdown-content {{ $menuDokumen ? 'show' : '' }}" id="dokumenContent">
         @if($module === 'pembayaran')
           <a href="{{ url($dokumenUrl) }}" class="{{ $menuDaftarDokumen ?? '' }}"><i></i> Daftar Pembayaran</a>
-          <a href="{{ url($dokumenUrl) }}" class="{{ $menuEditDokumen ?? '' }}"><i></i> Edit Pembayaran</a>
+          <a href="{{ route('pembayaran.rekapan') }}" class="{{ $menuRekapanDokumen ?? '' }}"><i></i> Rekapan Dokumen</a>
           <a href="{{ url($pengembalianUrl) }}" class="{{ $menuRekapKeterlambatan ?? '' }}"><i></i> Rekap Keterlambatan</a>
         @elseif($module === 'akutansi')
           <a href="{{ url($dokumenUrl) }}" class="{{ $menuDaftarDokumen ?? '' }}" id="menu-daftar-dokumen">
@@ -875,6 +889,7 @@
       let returnedNotificationCount = 0;
       let perpajakanNotificationCount = 0;
       let akutansiNotificationCount = 0;
+      let pembayaranNotificationCount = 0;
       let knownDocumentIds = new Set();
 
       // Smart Detection System
@@ -1019,6 +1034,8 @@
       notificationClass = 'notification-perpajakan';
     } else if (type === 'akutansi') {
       notificationClass = 'notification-akutansi';
+    } else if (type === 'pembayaran') {
+      notificationClass = 'notification-pembayaran';
     } else {
       notificationClass = 'notification-new';
     }
@@ -1164,6 +1181,7 @@
           const isReturnedNotification = notification.classList.contains('notification-returned');
           const isPerpajakanNotification = notification.classList.contains('notification-perpajakan');
           const isAkutansiNotification = notification.classList.contains('notification-akutansi');
+          const isPembayaranNotification = notification.classList.contains('notification-pembayaran');
 
           notification.classList.add('hiding');
           setTimeout(() => {
@@ -1178,6 +1196,9 @@
             } else if (isAkutansiNotification) {
               akutansiNotificationCount = Math.max(0, akutansiNotificationCount - 1);
               updateNotificationBadge(akutansiNotificationCount, 'akutansi');
+            } else if (isPembayaranNotification) {
+              pembayaranNotificationCount = Math.max(0, pembayaranNotificationCount - 1);
+              updateNotificationBadge(pembayaranNotificationCount, 'pembayaran');
             } else {
               notificationCount = Math.max(0, notificationCount - 1);
               updateNotificationBadge(notificationCount, 'new');
@@ -1230,12 +1251,14 @@
             endpoint = `/perpajakan/check-updates?last_checked=${Math.floor(lastChecked / 1000)}`;
           } else if (isAkutansi) {
             endpoint = `/akutansi/check-updates?last_checked=${Math.floor(lastChecked / 1000)}`;
+          } else if (isPembayaran) {
+            endpoint = `/pembayaran/check-updates?last_checked=${Math.floor(lastChecked / 1000)}`;
           } else {
             endpoint = `/dokumens/check-returned-updates?last_checked=${Math.floor(lastChecked / 1000)}`;
           }
 
           console.log('Checking updates from:', endpoint);
-          console.log('Current module check:', { isIbuB, isIbuA, isPerpajakan, isAkutansi });
+          console.log('Current module check:', { isIbuB, isIbuA, isPerpajakan, isAkutansi, isPembayaran });
 
           if (isAkutansi) {
             console.log('🔍 CHECKING FOR AKUTANSI UPDATES from:', endpoint);
@@ -1265,6 +1288,8 @@
             documents = data.new_documents;
           } else if (isAkutansi) {
             documents = data.new_documents;
+          } else if (isPembayaran) {
+            documents = data.new_documents;
           } else {
             documents = data.returned_documents;
           }
@@ -1290,6 +1315,8 @@
               } else if (isAkutansi) {
                 notificationType = 'akutansi';
                 console.log('🟢 AKUTANSI NOTIFICATION TYPE SET');
+              } else if (isPembayaran) {
+                notificationType = 'pembayaran';
               } else {
                 notificationType = 'returned';
               }
@@ -1306,6 +1333,9 @@
                 akutansiNotificationCount += newDocuments.length;
                 console.log('🔔 UPDATING AKUTANSI BADGE with count:', akutansiNotificationCount);
                 updateNotificationBadge(akutansiNotificationCount, 'akutansi');
+              } else if (isPembayaran) {
+                pembayaranNotificationCount = (pembayaranNotificationCount || 0) + newDocuments.length;
+                updateNotificationBadge(pembayaranNotificationCount, 'pembayaran');
               } else {
                 returnedNotificationCount += newDocuments.length;
                 updateNotificationBadge(returnedNotificationCount, 'returned');

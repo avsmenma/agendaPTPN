@@ -13,6 +13,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
             'role' => \App\Http\Middleware\CheckRole::class,
+            'autologin' => \App\Http\Middleware\AutoLoginMiddleware::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

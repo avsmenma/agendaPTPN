@@ -47,20 +47,72 @@ search-box .input-group {
     border-color: #889717;
   }
 
+  /* Table Container - Enhanced Horizontal Scroll from dokumensPerpajakan */
   .table-dokumen {
     background: linear-gradient(135deg, #ffffff 0%, #f8faf8 100%);
     border-radius: 16px;
-    overflow-x: auto;
+    padding: 30px;
     box-shadow: 0 8px 32px rgba(8, 62, 64, 0.1), 0 2px 8px rgba(136, 151, 23, 0.05);
     border: 1px solid rgba(8, 62, 64, 0.08);
     position: relative;
+    overflow: visible; /* Changed from hidden to visible to allow scrollbar */
+    width: 100%;
+    max-width: 100%;
+  }
+
+  /* Horizontal Scroll Container - Enhanced */
+  .table-responsive {
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: auto; /* Changed from thin to auto for better visibility */
+    scrollbar-color: rgba(8, 62, 64, 0.5) rgba(8, 62, 64, 0.1);
+    position: relative;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  /* Webkit scrollbar styling for Chrome, Safari, Edge */
+  .table-responsive::-webkit-scrollbar {
+    height: 16px; /* Increased from 12px for better visibility */
+  }
+
+  .table-responsive::-webkit-scrollbar-track {
+    background: rgba(8, 62, 64, 0.08);
+    border-radius: 8px;
+    margin: 0 10px;
+    border: 1px solid rgba(8, 62, 64, 0.1);
+  }
+
+  .table-responsive::-webkit-scrollbar-thumb {
+    background: linear-gradient(135deg, rgba(8, 62, 64, 0.6), rgba(136, 151, 23, 0.7));
+    border-radius: 8px;
+    border: 2px solid rgba(255, 255, 255, 0.9);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+
+  .table-responsive::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(135deg, rgba(8, 62, 64, 0.8), rgba(136, 151, 23, 0.9));
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15);
+  }
+
+  .table-responsive::-webkit-scrollbar-thumb:active {
+    background: linear-gradient(135deg, #083E40, #889717);
+  }
+
+  /* Firefox scrollbar styling */
+  .table-responsive {
+    scrollbar-width: auto;
+    scrollbar-color: rgba(8, 62, 64, 0.6) rgba(8, 62, 64, 0.1);
   }
 
   /* Enhanced table for better UX - Adopted from IbuB */
   .table-enhanced {
     border-collapse: separate;
     border-spacing: 0;
-    min-width: 1000px;
+    min-width: 1200px; /* Minimum width for horizontal scroll */
+    width: 100%;
+    table-layout: auto; /* Allow table to expand beyond container */
   }
 
   .table-enhanced thead th {
@@ -899,8 +951,19 @@ search-box .input-group {
   /* Final optimization for consistent styling */
   .table-container {
     border-radius: 16px;
-    overflow: hidden;
+    overflow-x: auto; /* Enable horizontal scroll */
+    overflow-y: visible; /* Allow vertical content */
     box-shadow: 0 8px 32px rgba(8, 62, 64, 0.1), 0 2px 8px rgba(136, 151, 23, 0.05);
+    width: 100%;
+    max-width: 100%;
+    position: relative;
+    /* Force scrollbar to always be visible when content overflows */
+    scrollbar-gutter: stable;
+  }
+
+  /* Ensure scrollbar is always visible when needed */
+  .table-container:has(.table-enhanced) {
+    overflow-x: scroll; /* Force scrollbar to appear */
   }
 
   /* Micro-interactions for better UX */
@@ -916,6 +979,27 @@ search-box .input-group {
 
   .main-row:active {
     transform: scale(0.99);
+  }
+
+  /* Additional scrollbar enhancements for better visibility */
+  .table-dokumen .table-responsive {
+    padding-bottom: 5px; /* Add space for scrollbar */
+    margin-bottom: 5px; /* Add margin for scrollbar visibility */
+  }
+
+  /* Ensure scrollbar is always visible on all browsers */
+  @supports (scrollbar-width: auto) {
+    .table-responsive {
+      scrollbar-width: auto;
+      scrollbar-color: rgba(8, 62, 64, 0.6) rgba(8, 62, 64, 0.1);
+    }
+  }
+
+  /* Ensure horizontal scrollbar appears when content overflows */
+  .table-container .table-responsive {
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
   }
 
   </style>
@@ -966,8 +1050,9 @@ search-box .input-group {
 </div>
 
 <!-- Enhanced Tabel Dokumen -->
-<div class="table-responsive table-container">
-  <table class="table table-enhanced mb-0">
+<div class="table-dokumen">
+  <div class="table-responsive table-container">
+    <table class="table table-enhanced mb-0">
     <thead>
       <tr>
         <th class="col-no sticky-column">No</th>
@@ -1004,10 +1089,10 @@ search-box .input-group {
               <i class="fa-solid fa-file-lines me-1"></i>
               <span>Belum Dikirim</span>
             </span>
-          @elseif($dokumen->status == 'menunggu_approved_pengiriman')
-            <span class="badge-status" style="background: linear-gradient(135deg, #ffc107 0%, #ff8c00 100%); color: white;">
-              <i class="fa-solid fa-clock me-1"></i>
-              <span>Sedang Menunggu Persetujuan</span>
+          @elseif($dokumen->status == 'sent_to_ibub')
+            <span class="badge-status badge-terkirim">
+              <i class="fa-solid fa-check me-1"></i>
+              <span>Terkirim ke IbuB</span>
             </span>
           @elseif($dokumen->status == 'approved_data_sudah_terkirim')
             <span class="badge-status badge-terkirim">
@@ -1072,6 +1157,7 @@ search-box .input-group {
       @endforelse
     </tbody>
   </table>
+  </div>
 </div>
 
 <!-- Pagination -->
@@ -1167,7 +1253,7 @@ search-box .input-group {
         </div>
         <h5 class="fw-bold mb-3">Apakah Anda yakin ingin mengirim dokumen ini ke IbuB?</h5>
         <p class="text-muted mb-0">
-          Dokumen akan dikirim ke IbuB untuk proses verifikasi dan akan muncul di daftar dokumen IbuB.
+          Dokumen akan langsung dikirim ke IbuB dan muncul di daftar dokumen IbuB untuk diproses.
         </p>
       </div>
       <div class="modal-footer border-0 justify-content-center gap-2">
@@ -1198,7 +1284,7 @@ search-box .input-group {
         </div>
         <h5 class="fw-bold mb-2">Dokumen telah dikirim ke IbuB!</h5>
         <p class="text-muted mb-0" id="sendSuccessMessage">
-          Dokumen berhasil dikirim dan akan muncul di daftar IbuB untuk proses selanjutnya.
+          Dokumen berhasil dikirim dan langsung muncul di daftar dokumen IbuB.
         </p>
       </div>
       <div class="modal-footer border-0 justify-content-center">
@@ -1441,6 +1527,7 @@ notificationStyles.textContent = `
   }
 `;
 document.head.appendChild(notificationStyles);
+
 
 // Enhanced page initialization
 document.addEventListener('DOMContentLoaded', function() {

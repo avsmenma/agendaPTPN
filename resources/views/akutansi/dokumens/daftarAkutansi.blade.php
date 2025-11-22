@@ -125,20 +125,56 @@
     background: white;
   }
 
+  /* Enhanced Locked State UX - Simplified for better readability */
   .table-enhanced tbody tr.locked-row {
-    background: linear-gradient(135deg, #f8f9fa 0%, #eef3f3 100%);
-    border-left-color: #ffc107;
+    background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+    border-left: 3px solid #ffc107 !important;
     position: relative;
+    opacity: 1;
+    cursor: not-allowed;
   }
 
   .table-enhanced tbody tr.locked-row::before {
-    content: '🔒';
-    position: absolute;
-    left: 8px;
-    top: 50%;
-    transform: translateY(-50%);
-    font-size: 16px;
-    opacity: 0.6;
+    display: none; /* Removed lock icon overlay */
+  }
+
+  .table-enhanced tbody tr.locked-row::after {
+    display: none; /* Removed overlay patterns */
+  }
+
+  .table-enhanced tbody tr.locked-row:hover {
+    background: linear-gradient(135deg, #fffef5 0%, #fff9e6 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(255, 193, 7, 0.1);
+    cursor: not-allowed;
+  }
+
+  /* Overdue Row Styling */
+  .table-enhanced tbody tr.overdue-row {
+    background: linear-gradient(135deg, #fff5f5 0%, #fee2e2 100%);
+    border-left: 3px solid #ef4444 !important;
+    position: relative;
+    opacity: 1;
+  }
+
+  .table-enhanced tbody tr.overdue-row:hover {
+    background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(239, 68, 68, 0.1);
+  }
+
+  /* Unlocked Row Styling */
+  .table-enhanced tbody tr.unlocked-row {
+    background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+    border-left: 3px solid #22c55e !important;
+    position: relative;
+    opacity: 1;
+  }
+
+  .table-enhanced tbody tr.unlocked-row:hover {
+    background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(34, 197, 94, 0.1);
   }
 
   .table-enhanced tbody tr:hover {
@@ -193,6 +229,18 @@
     box-shadow: 0 2px 8px rgba(220, 53, 69, 0.3);
   }
 
+  .badge-locked {
+    background: linear-gradient(135deg, #ffc107 0%, #ff8c00 100%);
+    color: white;
+    box-shadow: 0 2px 8px rgba(255, 193, 7, 0.3);
+    animation: locked-pulse 2s infinite;
+  }
+
+  @keyframes locked-pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+  }
+
   /* Action Buttons */
   .btn-action {
     padding: 6px 10px;
@@ -229,10 +277,44 @@
     box-shadow: 0 4px 12px rgba(23, 162, 184, 0.3);
   }
 
+  .btn-send {
+    background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);
+  }
+
+  .btn-send:hover {
+    box-shadow: 0 4px 12px rgba(39, 174, 96, 0.3);
+  }
+
   .btn-locked {
     background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
     cursor: not-allowed;
-    opacity: 0.8;
+    opacity: 0.6;
+  }
+
+  .btn-locked:hover {
+    opacity: 0.7;
+    transform: none;
+    cursor: not-allowed;
+  }
+
+  /* Set Deadline Button */
+  .btn-set-deadline {
+    background: linear-gradient(135deg, #ffc107 0%, #ff8c00 100%);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 6px rgba(255, 193, 7, 0.3);
+  }
+
+  .btn-set-deadline:hover {
+    background: linear-gradient(135deg, #ff8c00 0%, #ff9500 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(255, 193, 7, 0.4);
   }
 
   /* Deadline styling */
@@ -539,12 +621,7 @@
       </thead>
       <tbody>
       @forelse($dokumens as $index => $dokumen)
-        @php
-          $isLocked = $dokumen->current_handler === 'akutansi'
-            && $dokumen->status === 'sent_to_akutansi'
-            && is_null($dokumen->deadline_at);
-        @endphp
-        <tr class="main-row {{ $isLocked ? 'locked-row' : '' }}" onclick="toggleDetail({{ $dokumen->id }})" title="Klik untuk melihat detail lengkap dokumen">
+        <tr class="main-row {{ $dokumen->lock_status_class }}" onclick="toggleDetail({{ $dokumen->id }})" title="{{ $dokumen->lock_status_message }}">
             <td style="text-align: center;">{{ $index + 1 }}</td>
             <td>
               <strong>{{ $dokumen->nomor_agenda }}</strong>
@@ -580,8 +657,8 @@
                 <span class="badge-status badge-selesai">✓ Selesai</span>
               @elseif($dokumen->status == 'sedang diproses' && $dokumen->current_handler == 'akutansi')
                 <span class="badge-status badge-proses">⏳ Diproses</span>
-              @elseif($isLocked)
-                <span class="badge-status badge-belum">🔒 Terkunci</span>
+              @elseif($dokumen->is_locked)
+                <span class="badge-status badge-locked">🔒 Terkunci</span>
               @elseif($dokumen->status == 'sent_to_akutansi')
                 <span class="badge-status badge-belum">⏳ Belum Diproses</span>
               @elseif(in_array($dokumen->status, ['returned_to_ibua', 'returned_to_department', 'dikembalikan']))
@@ -592,20 +669,29 @@
             </td>
             <td style="text-align: center;" onclick="event.stopPropagation()">
               <div class="d-flex justify-content-center flex-wrap gap-1">
-                @if($isLocked)
-                  <button class="btn-action btn-locked" disabled title="Dokumen terkunci. Tetapkan deadline untuk membuka.">
+                @if($dokumen->is_locked)
+                  <!-- Locked state - edit disabled, deadline enabled -->
+                  <button class="btn-action btn-locked" disabled title="{{ $dokumen->lock_status_message }}">
                     <i class="fa-solid fa-lock"></i>
                   </button>
-                  <button class="btn-action btn-action" style="background: linear-gradient(135deg, #ffc107 0%, #ff8c00 100%);" onclick="openSetDeadlineModal({{ $dokumen->id }})" title="Tetapkan Deadline">
-                    <i class="fa-solid fa-clock"></i>
-                  </button>
+                  @if($dokumen->can_set_deadline)
+                    <button type="button" class="btn-action btn-set-deadline" onclick="openSetDeadlineModal({{ $dokumen->id }})" title="Tetapkan Deadline">
+                      <i class="fa-solid fa-clock"></i>
+                      <span>Set Deadline</span>
+                    </button>
+                  @endif
                 @else
-                  <button class="btn-action btn-edit" onclick="editDocument({{ $dokumen->id }})" title="Edit">
-                    <i class="fas fa-edit"></i>
-                  </button>
-                  <button class="btn-action btn-send" onclick="sendDocument({{ $dokumen->id }})" title="Kirim Dokumen">
-                    <i class="fa-solid fa-paper-plane"></i>
-                  </button>
+                  <!-- Unlocked state - edit enabled -->
+                  @if($dokumen->can_edit)
+                    <button class="btn-action btn-edit" onclick="editDocument({{ $dokumen->id }})" title="Edit">
+                      <i class="fas fa-edit"></i>
+                    </button>
+                  @endif
+                  @if($dokumen->status == 'sedang diproses' && $dokumen->current_handler == 'akutansi')
+                    <button class="btn-action btn-send" onclick="sendToPembayaran({{ $dokumen->id }})" title="Kirim ke Pembayaran">
+                      <i class="fa-solid fa-paper-plane"></i>
+                    </button>
+                  @endif
                 @endif
               </div>
             </td>
@@ -675,6 +761,34 @@
         </button>
         <button type="button" class="btn btn-warning" onclick="confirmSetDeadline()">
           <i class="fa-solid fa-check me-2"></i>Tetapkan
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Deadline Success -->
+<div class="modal fade" id="deadlineSuccessModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white;">
+        <h5 class="modal-title">
+          <i class="fa-solid fa-circle-check me-2"></i>Deadline Berhasil Ditetapkan
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body text-center">
+        <div class="mb-3">
+          <i class="fa-solid fa-check-circle" style="font-size: 52px; color: #28a745;"></i>
+        </div>
+        <h5 class="fw-bold mb-2">Deadline berhasil ditetapkan!</h5>
+        <p class="text-muted mb-0" id="deadlineSuccessMessage">
+          Dokumen sekarang terbuka untuk diproses.
+        </p>
+      </div>
+      <div class="modal-footer border-0 justify-content-center">
+        <button type="button" class="btn btn-success px-4" data-bs-dismiss="modal">
+          <i class="fa-solid fa-check me-2"></i>Selesai
         </button>
       </div>
     </div>
@@ -753,10 +867,38 @@ function editDocument(id) {
   window.location.href = `/dokumensAkutansi/${id}/edit`;
 }
 
-function sendDocument(id) {
-  // Implement send functionality
-  if (confirm('Apakah Anda yakin ingin mengirim dokumen ini?')) {
-    window.location.href = `/dokumensAkutansi/${id}/send`;
+function sendToPembayaran(id) {
+  if (confirm('Apakah Anda yakin ingin mengirim dokumen ini ke Pembayaran?')) {
+    const sendBtn = event.currentTarget;
+    const originalHTML = sendBtn.innerHTML;
+    sendBtn.disabled = true;
+    sendBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+
+    fetch(`/dokumensAkutansi/${id}/send-to-pembayaran`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+      }
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        alert(data.message);
+        // Remove the row from table or refresh
+        location.reload();
+      } else {
+        alert(data.message || 'Gagal mengirim dokumen ke Pembayaran.');
+        sendBtn.disabled = false;
+        sendBtn.innerHTML = originalHTML;
+      }
+    })
+    .catch(error => {
+      console.error('Error:', error);
+      alert('Terjadi kesalahan saat mengirim dokumen. Silakan coba lagi.');
+      sendBtn.disabled = false;
+      sendBtn.innerHTML = originalHTML;
+    });
   }
 }
 
@@ -807,7 +949,20 @@ function confirmSetDeadline() {
   const deadlineNote = document.getElementById('deadlineNote').value;
 
   if (!deadlineDays) {
-    alert('Pilih periode deadline terlebih dahulu!');
+    showWarningModal('Pilih periode deadline terlebih dahulu!');
+    return;
+  }
+
+  if (deadlineDays < 1 || deadlineDays > 14) {
+    showWarningModal('Periode deadline harus antara 1-14 hari!');
+    return;
+  }
+
+  // Check CSRF token availability
+  const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+  if (!csrfToken) {
+    console.error('CSRF token not found!');
+    showErrorModal('CSRF token tidak ditemukan. Silakan refresh halaman.');
     return;
   }
 
@@ -816,37 +971,107 @@ function confirmSetDeadline() {
   submitBtn.disabled = true;
   submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-2"></i>Menetapkan...';
 
+  // Type casting untuk memastikan integer
+  const deadlineDaysInt = parseInt(deadlineDays, 10);
+
+  console.log('Sending request to: ', `/dokumensAkutansi/${docId}/set-deadline`);
+  console.log('Request payload: ', {
+    deadline_days: deadlineDaysInt,
+    deadline_note: deadlineNote
+  });
+
   fetch(`/dokumensAkutansi/${docId}/set-deadline`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+      'X-CSRF-TOKEN': csrfToken,
+      'Accept': 'application/json'
     },
     body: JSON.stringify({
-      deadline_days: parseInt(deadlineDays, 10),
+      deadline_days: deadlineDaysInt,
       deadline_note: deadlineNote
     })
   })
-  .then(response => response.json())
+  .then(async response => {
+    console.log('Response status:', response.status);
+    
+    // Try to parse response as JSON first
+    let responseData;
+    try {
+      responseData = await response.json();
+    } catch (e) {
+      // If response is not JSON, create error object
+      responseData = {
+        success: false,
+        message: `Server error: ${response.status} ${response.statusText}`
+      };
+    }
+    
+    if (!response.ok) {
+      // Extract error message from response
+      const errorMessage = responseData.message || responseData.error || `HTTP error! status: ${response.status}`;
+      
+      // Log debug info if available
+      if (responseData.debug_info) {
+        console.error('Debug info:', responseData.debug_info);
+      }
+      
+      throw new Error(errorMessage);
+    }
+    
+    return responseData;
+  })
   .then(data => {
+    console.log('Response data:', data);
     if (data.success) {
-      const modal = bootstrap.Modal.getInstance(document.getElementById('setDeadlineModal'));
-      modal.hide();
-      alert('Deadline berhasil ditetapkan! Dokumen kini terbuka untuk diproses.');
-      location.reload();
+      const deadlineModal = bootstrap.Modal.getInstance(document.getElementById('setDeadlineModal'));
+      deadlineModal.hide();
+
+      // Show success modal
+      const successModalEl = document.getElementById('deadlineSuccessModal');
+      const successModal = new bootstrap.Modal(successModalEl);
+      const successMessageEl = document.getElementById('deadlineSuccessMessage');
+      
+      if (data.deadline) {
+        successMessageEl.textContent = 
+          `Deadline: ${data.deadline}. Dokumen sekarang terbuka untuk diproses.`;
+      } else {
+        successMessageEl.textContent = data.message || 'Deadline berhasil ditetapkan.';
+      }
+      
+      // Reload page when modal is closed
+      successModalEl.addEventListener('hidden.bs.modal', function() {
+        location.reload();
+      }, { once: true });
+      
+      successModal.show();
     } else {
-      alert(data.message || 'Gagal menetapkan deadline.');
+      alert('Gagal menetapkan deadline: ' + (data.message || 'Terjadi kesalahan yang tidak diketahui'));
       submitBtn.disabled = false;
       submitBtn.innerHTML = originalHTML;
     }
   })
   .catch(error => {
     console.error('Error:', error);
-    alert('Terjadi kesalahan saat menetapkan deadline.');
+    console.error('Error details:', error.message);
+    alert('Terjadi kesalahan saat menetapkan deadline: ' + error.message);
     submitBtn.disabled = false;
     submitBtn.innerHTML = originalHTML;
   });
 }
+// Helper Functions for Modal Alerts
+function showWarningModal(message) {
+  alert(message); // Simple fallback - could be enhanced with proper modal
+}
+
+function showErrorModal(message) {
+  alert(message); // Simple fallback - could be enhanced with proper modal
+}
+
+function showSuccessModal(message) {
+  alert(message); // Simple fallback - could be enhanced with proper modal
+}
+
 </script>
 
 @endsection
