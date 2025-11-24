@@ -636,7 +636,7 @@ body {
     <div class="workflow-stages">
       @foreach($workflowStages as $index => $stage)
         <div class="workflow-stage">
-          <div class="stage-card {{ $stage['status'] }} {{ isset($stage['hasCycle']) && $stage['hasCycle'] ? 'has-cycle' : '' }}" style="--stage-color: {{ $stage['color'] }}">
+          <div class="stage-card {{ $stage['status'] }} {{ isset($stage['hasCycle']) && $stage['hasCycle'] ? 'has-cycle' : '' }}" style="--stage-color: {{ $stage['color'] }}" data-stage-id="{{ $stage['id'] }}">
             @if(isset($stage['hasCycle']) && $stage['hasCycle'] && isset($stage['cycleInfo']['attemptCount']) && $stage['cycleInfo']['attemptCount'] > 1)
               <div class="cycle-badge">
                 <i class="fas fa-redo"></i> Attempt {{ $stage['cycleInfo']['attemptCount'] }}
@@ -661,6 +661,43 @@ body {
                   <i class="fas fa-hourglass-half"></i> {{ $stage['duration'] }}
                 </div>
               @endif
+              
+              @php
+                $stageLogs = isset($activityLogsByStage) && $activityLogsByStage->has($stage['id']) 
+                    ? $activityLogsByStage[$stage['id']] 
+                    : collect();
+              @endphp
+              <div class="activity-logs" style="margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid #e5e7eb;">
+                <div style="font-size: 0.65rem; font-weight: 600; color: #6b7280; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.5px;">
+                  <i class="fas fa-list"></i> Logs Aktivitas:
+                </div>
+                @if($stageLogs->count() > 0)
+                  <a href="javascript:void(0)" 
+                     onclick="openActivityLogsModal('{{ $stage['id'] }}', '{{ $stage['name'] }}')" 
+                     class="view-logs-link"
+                     style="display: inline-block; font-size: 0.75rem; color: {{ $stage['color'] }}; text-decoration: none; cursor: pointer; padding: 0.25rem 0.5rem; border-radius: 4px; transition: all 0.2s;"
+                     onmouseover="this.style.backgroundColor='{{ $stage['color'] }}20'; this.style.textDecoration='underline';"
+                     onmouseout="this.style.backgroundColor='transparent'; this.style.textDecoration='none';">
+                    <i class="fas fa-eye"></i> Klik untuk melihat aktivitas ({{ $stageLogs->count() }})
+                  </a>
+                  
+                  <!-- Hidden data for modal -->
+                  <div id="logs-data-{{ $stage['id'] }}" style="display: none;" data-stage-color="{{ $stage['color'] }}">
+                    @foreach($stageLogs as $log)
+                      <div class="log-item" 
+                           data-action="{{ $log->action }}" 
+                           data-description="{{ htmlspecialchars($log->action_description, ENT_QUOTES, 'UTF-8') }}" 
+                           data-timestamp="{{ $log->action_at->format('d-m-Y H:i:s') }}" 
+                           data-timestamp-date="{{ $log->action_at->format('d-m-Y') }}" 
+                           data-timestamp-time="{{ $log->action_at->format('H:i:s') }}"></div>
+                    @endforeach
+                  </div>
+                @else
+                  <div style="font-size: 0.7rem; color: #9ca3af; font-style: italic;">
+                    Belum ada aktivitas yang tercatat
+                  </div>
+                @endif
+              </div>
               @if($stage['hasReturn'] && $stage['returnInfo'])
                 <div class="return-badge">
                   <i class="fas fa-undo"></i> Dikembalikan
@@ -778,6 +815,10 @@ body {
               <div class="document-info-item">
                 <div class="document-info-label">Jenis Pembayaran</div>
                 <div class="document-info-value">{{ $dokumen->jenis_pembayaran ?? '-' }}</div>
+              </div>
+              <div class="document-info-item">
+                <div class="document-info-label">Kebun</div>
+                <div class="document-info-value">{{ $dokumen->kebun ?? '-' }}</div>
               </div>
               <div class="document-info-item">
                 <div class="document-info-label">Bagian</div>
@@ -1054,7 +1095,157 @@ document.addEventListener('DOMContentLoaded', function() {
     firstAccordion.classList.add('active');
   }
 });
+
+// Activity Logs Modal Functions
+function openActivityLogsModal(stageId, stageName) {
+  const modal = document.getElementById('activityLogsModal');
+  const modalTitle = document.getElementById('activityLogsModalTitle');
+  const modalContent = document.getElementById('activityLogsModalContent');
+  const logsData = document.getElementById('logs-data-' + stageId);
+  
+  if (!logsData) return;
+  
+  // Set modal title
+  modalTitle.textContent = 'Logs Aktivitas - ' + stageName;
+  
+  // Clear previous content
+  modalContent.innerHTML = '';
+  
+  // Get stage color from logs data element
+  let stageColor = logsData.getAttribute('data-stage-color') || '#3b82f6';
+  
+  // Build logs HTML
+  const logItems = logsData.querySelectorAll('.log-item');
+  if (logItems.length === 0) {
+    modalContent.innerHTML = '<div style="text-align: center; padding: 2rem; color: #9ca3af; font-style: italic;">Belum ada aktivitas yang tercatat</div>';
+  } else {
+    logItems.forEach((item, index) => {
+      const action = item.getAttribute('data-action');
+      const description = item.getAttribute('data-description');
+      const timestampDate = item.getAttribute('data-timestamp-date');
+      const timestampTime = item.getAttribute('data-timestamp-time');
+      const timestamp = item.getAttribute('data-timestamp');
+      
+      const logDiv = document.createElement('div');
+      logDiv.className = 'modal-log-item';
+      logDiv.style.cssText = 'margin-bottom: 0.75rem; padding: 0.75rem; background: #f9fafb; border-left: 3px solid ' + stageColor + '; border-radius: 4px;';
+      
+      let logText = '';
+      if (action === 'received' || action === 'deadline_set') {
+        logText = '• ' + description + ' ' + timestampDate + ' jam ' + timestampTime;
+      } else {
+        logText = '• ' + description + ' pada tanggal ' + timestamp;
+      }
+      
+      logDiv.innerHTML = '<div style="font-size: 0.875rem; color: #374151; line-height: 1.6;">' + logText + '</div>';
+      modalContent.appendChild(logDiv);
+    });
+  }
+  
+  // Show modal
+  modal.style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+}
+
+function closeActivityLogsModal() {
+  const modal = document.getElementById('activityLogsModal');
+  modal.style.display = 'none';
+  document.body.style.overflow = 'auto';
+}
+
+// Close modal when clicking outside
+window.onclick = function(event) {
+  const modal = document.getElementById('activityLogsModal');
+  if (event.target === modal) {
+    closeActivityLogsModal();
+  }
+}
+
+// Close modal with Escape key
+document.addEventListener('keydown', function(event) {
+  if (event.key === 'Escape') {
+    closeActivityLogsModal();
+  }
+});
 </script>
+
+<!-- Activity Logs Modal -->
+<div id="activityLogsModal" class="activity-logs-modal" style="display: none; position: fixed; z-index: 10000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); align-items: center; justify-content: center; animation: fadeIn 0.2s ease-in-out;">
+  <div class="activity-logs-modal-content" style="background-color: white; margin: auto; padding: 0; border-radius: 12px; width: 90%; max-width: 700px; max-height: 80vh; box-shadow: 0 10px 40px rgba(0,0,0,0.2); display: flex; flex-direction: column; animation: slideUp 0.3s ease-out;">
+    <div class="activity-logs-modal-header" style="padding: 1.25rem 1.5rem; border-bottom: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px 12px 0 0;">
+      <h3 id="activityLogsModalTitle" style="margin: 0; font-size: 1.125rem; font-weight: 600; color: white; display: flex; align-items: center; gap: 0.5rem;">
+        <i class="fas fa-list"></i> <span>Logs Aktivitas</span>
+      </h3>
+      <button onclick="closeActivityLogsModal()" style="background: rgba(255,255,255,0.2); border: none; color: white; font-size: 1.5rem; font-weight: bold; cursor: pointer; padding: 0.25rem 0.75rem; border-radius: 6px; transition: all 0.2s; line-height: 1;" onmouseover="this.style.background='rgba(255,255,255,0.3)';" onmouseout="this.style.background='rgba(255,255,255,0.2)';">
+        <span>&times;</span>
+      </button>
+    </div>
+    <div id="activityLogsModalContent" class="activity-logs-modal-body" style="padding: 1.5rem; overflow-y: auto; flex: 1; max-height: calc(80vh - 80px);">
+      <!-- Logs will be inserted here -->
+    </div>
+  </div>
+</div>
+
+<style>
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { 
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to { 
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.activity-logs-modal {
+  backdrop-filter: blur(4px);
+}
+
+.activity-logs-modal-content {
+  box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+}
+
+.activity-logs-modal-body::-webkit-scrollbar {
+  width: 8px;
+}
+
+.activity-logs-modal-body::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.activity-logs-modal-body::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 4px;
+}
+
+.activity-logs-modal-body::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+.modal-log-item {
+  transition: all 0.2s;
+}
+
+.modal-log-item:hover {
+  background: #f3f4f6 !important;
+  transform: translateX(4px);
+}
+
+.view-logs-link {
+  font-weight: 500;
+}
+
+.view-logs-link i {
+  margin-right: 0.25rem;
+}
+</style>
 
 @endsection
 

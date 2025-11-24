@@ -17,9 +17,11 @@ class DashboardAkutansiController extends Controller
 {
     public function index(){
         // Get all documents that have been assigned to akutansi at any point
+        // Include documents sent to pembayaran (they should still appear in akutansi list)
         $akutansiDocs = Dokumen::where(function($query) {
             $query->where('current_handler', 'akutansi')
-                  ->orWhere('status', 'sent_to_akutansi');
+                  ->orWhere('status', 'sent_to_akutansi')
+                  ->orWhere('status', 'sent_to_pembayaran'); // Tetap tampilkan dokumen yang sudah dikirim ke pembayaran
         })->get();
 
         // Calculate accurate statistics based on actual workflow using existing fields
@@ -148,9 +150,11 @@ class DashboardAkutansiController extends Controller
         // Akutansi sees:
         // 1. Documents currently handled by Akutansi (active)
         // 2. Documents that have been sent to Akutansi (tracking)
+        // 3. Documents that have been sent to Pembayaran (tetap muncul untuk tracking)
         $query = Dokumen::where(function($q) {
                 $q->where('current_handler', 'akutansi')
-                  ->orWhere('status', 'sent_to_akutansi');
+                  ->orWhere('status', 'sent_to_akutansi')
+                  ->orWhere('status', 'sent_to_pembayaran'); // Tetap tampilkan dokumen yang sudah dikirim ke pembayaran
             })
             ->with(['dokumenPos', 'dokumenPrs', 'dibayarKepadas']);
 
@@ -329,6 +333,8 @@ class DashboardAkutansiController extends Controller
                 'nilai_rupiah' => 'required|numeric|min:0',
                 'tanggal_masuk' => 'nullable|date',
                 'tanggal_spp' => 'nullable|date',
+                'kebun' => 'nullable|string|max:255',
+                'jenis_pembayaran' => 'nullable|string|max:255',
 
                 // Tax fields
                 'status_perpajakan' => 'nullable|string|max:255',
@@ -359,6 +365,8 @@ class DashboardAkutansiController extends Controller
                 'nilai_rupiah' => $validated['nilai_rupiah'],
                 'tanggal_masuk' => $validated['tanggal_masuk'] ?? $dokumen->tanggal_masuk,
                 'tanggal_spp' => $validated['tanggal_spp'] ?? $dokumen->tanggal_spp,
+                'kebun' => $validated['kebun'] ?? $dokumen->kebun,
+                'jenis_pembayaran' => $validated['jenis_pembayaran'] ?? $dokumen->jenis_pembayaran,
 
                 // Tax fields
                 'status_perpajakan' => $validated['status_perpajakan'] ?? $dokumen->status_perpajakan,
@@ -370,17 +378,37 @@ class DashboardAkutansiController extends Controller
                 'ppn_terhutang' => $validated['ppn_terhutang'] ?? $dokumen->ppn_terhutang,
             ];
 
+            // Store old value for logging
+            $oldNomorMiro = $dokumen->nomor_miro;
+
             // Update document using transaction
             DB::transaction(function () use ($dokumen, $updateData) {
                 $dokumen->update($updateData);
-
-                Log::info('Dokumen Akutansi updated successfully', [
-                    'document_id' => $dokumen->id,
-                    'nomor_agenda' => $dokumen->nomor_agenda,
-                    'nomor_miro' => $dokumen->nomor_miro,
-                    'updated_by' => Auth::user()?->name
-                ]);
             });
+
+            $dokumen->refresh();
+
+            // Log changes for akutansi-specific fields
+            if ($oldNomorMiro != $dokumen->nomor_miro) {
+                try {
+                    \App\Helpers\ActivityLogHelper::logDataEdited(
+                        $dokumen,
+                        'nomor_miro',
+                        $oldNomorMiro,
+                        $dokumen->nomor_miro,
+                        'akutansi'
+                    );
+                } catch (\Exception $logException) {
+                    \Log::error('Failed to log data edit for nomor_miro: ' . $logException->getMessage());
+                }
+            }
+
+            Log::info('Dokumen Akutansi updated successfully', [
+                'document_id' => $dokumen->id,
+                'nomor_agenda' => $dokumen->nomor_agenda,
+                'nomor_miro' => $dokumen->nomor_miro,
+                'updated_by' => Auth::user()?->name
+            ]);
 
             return redirect()->route('dokumensAkutansi.index')
                 ->with('success', 'Dokumen Akutansi berhasil diperbarui!' .
@@ -471,6 +499,21 @@ class DashboardAkutansiController extends Controller
                     'processed_at' => now(),
                 ]);
             });
+
+            // Log activity: deadline diatur oleh Team Akutansi
+            try {
+                \App\Helpers\ActivityLogHelper::logDeadlineSet(
+                    $dokumen->fresh(),
+                    'akutansi',
+                    [
+                        'deadline_days' => $deadlineDays,
+                        'deadline_at' => $dokumen->fresh()->deadline_at?->format('Y-m-d H:i:s'),
+                        'deadline_note' => $deadlineNote,
+                    ]
+                );
+            } catch (\Exception $logException) {
+                \Log::error('Failed to log deadline set: ' . $logException->getMessage());
+            }
 
             \Log::info('Deadline successfully set for Akutansi', [
                 'document_id' => $dokumen->id,
@@ -655,6 +698,7 @@ class DashboardAkutansiController extends Controller
             'Jenis Dokumen' => $dokumen->jenis_dokumen ?? '-',
             'SubBagian Pekerjaan' => $dokumen->jenis_sub_pekerjaan ?? '-',
             'Jenis Pembayaran' => $dokumen->jenis_pembayaran ?? '-',
+            'Kebun' => $dokumen->kebun ?? '-',
             'Dibayar Kepada' => $dokumen->dibayarKepadas->count() > 0
                 ? htmlspecialchars($dokumen->dibayarKepadas->pluck('nama_penerima')->join(', '))
                 : ($dokumen->dibayar_kepada ?? '-'),
@@ -829,6 +873,23 @@ class DashboardAkutansiController extends Controller
                 'universal_approval_for' => 'pembayaran', // For universal approval system
                 'sent_to_pembayaran_at' => now(), // Timestamp when sent to pembayaran
             ]);
+
+            // Log activity: dokumen dikirim ke pembayaran oleh Team Akutansi
+            try {
+                \App\Helpers\ActivityLogHelper::logSent(
+                    $dokumen->fresh(),
+                    'pembayaran',
+                    'akutansi'
+                );
+                
+                // Log activity: dokumen masuk/diterima di stage pembayaran
+                \App\Helpers\ActivityLogHelper::logReceived(
+                    $dokumen->fresh(),
+                    'pembayaran'
+                );
+            } catch (\Exception $logException) {
+                \Log::error('Failed to log document sent: ' . $logException->getMessage());
+            }
 
             // Log the activity
             \Log::info('Document sent from Akutansi to Pembayaran', [

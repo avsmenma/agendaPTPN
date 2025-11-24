@@ -310,6 +310,7 @@ class DashboardBController extends Controller
                 'jenis_dokumen' => $request->jenis_dokumen,
                 'jenis_sub_pekerjaan' => $request->jenis_sub_pekerjaan,
                 'jenis_pembayaran' => $request->jenis_pembayaran,
+                'kebun' => $request->kebun,
                 'dibayar_kepada' => $request->dibayar_kepada,
                 'no_berita_acara' => $request->no_berita_acara,
                 'tanggal_berita_acara' => $request->tanggal_berita_acara,
@@ -464,6 +465,7 @@ class DashboardBController extends Controller
             'Jenis Dokumen' => $dokumen->jenis_dokumen,
             'SubBagian Pekerjaan' => $dokumen->jenis_sub_pekerjaan ?? '-',
             'Jenis Pembayaran' => $dokumen->jenis_pembayaran ?? '-',
+            'Kebun' => $dokumen->kebun ?? '-',
             'Dibayar Kepada' => $dokumen->dibayarKepadas->count() > 0
                 ? $dokumen->dibayarKepadas->pluck('nama_penerima')->join(', ')
                 : ($dokumen->dibayar_kepada ?? '-'),
@@ -795,6 +797,23 @@ class DashboardBController extends Controller
 
             \DB::commit();
 
+            // Log activity: dokumen dikirim ke perpajakan/akutansi oleh Ibu Yuni
+            try {
+                \App\Helpers\ActivityLogHelper::logSent(
+                    $dokumen->fresh(),
+                    $request->next_handler,
+                    'ibuB'
+                );
+                
+                // Log activity: dokumen masuk/diterima di stage penerima
+                \App\Helpers\ActivityLogHelper::logReceived(
+                    $dokumen->fresh(),
+                    $request->next_handler
+                );
+            } catch (\Exception $logException) {
+                \Log::error('Failed to log document sent: ' . $logException->getMessage());
+            }
+
             $nextHandlerName = $request->next_handler === 'perpajakan' ? 'Team Perpajakan' : 'Team Akutansi';
 
             \Log::info("Document #{$dokumen->id} sent to {$nextHandlerName} by ibuB");
@@ -912,6 +931,21 @@ class DashboardBController extends Controller
             DB::transaction(function () use ($dokumen, $updateData) {
                 $dokumen->update($updateData);
             });
+
+            // Log activity: deadline diatur oleh Ibu Yuni
+            try {
+                \App\Helpers\ActivityLogHelper::logDeadlineSet(
+                    $dokumen->fresh(),
+                    'ibuB',
+                    [
+                        'deadline_days' => $deadlineDays,
+                        'deadline_at' => $dokumen->fresh()->deadline_at?->format('Y-m-d H:i:s'),
+                        'deadline_note' => $deadlineNote,
+                    ]
+                );
+            } catch (\Exception $logException) {
+                \Log::error('Failed to log deadline set: ' . $logException->getMessage());
+            }
 
             Log::info('Deadline successfully set', [
                 'document_id' => $dokumen->id,

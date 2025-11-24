@@ -128,6 +128,16 @@
     border-left: 3px solid transparent;
   }
 
+  .table tbody tr.clickable-row {
+    cursor: pointer;
+  }
+
+  .table tbody tr.clickable-row:hover {
+    background: linear-gradient(90deg, rgba(220, 53, 69, 0.05) 0%, transparent 100%);
+    border-left: 3px solid #dc3545;
+    transform: scale(1.002);
+  }
+
   .table tbody tr:hover {
     background: linear-gradient(90deg, rgba(220, 53, 69, 0.05) 0%, transparent 100%);
     border-left: 3px solid #dc3545;
@@ -349,10 +359,33 @@
             @php
               $now = \Carbon\Carbon::now();
               $deadline = \Carbon\Carbon::parse($dokumen->deadline_at);
-              $terlambatHari = $now->diffInDays($deadline);
-              $terlambatJam = $now->diffInHours($deadline);
+              
+              // Calculate keterlambatan in a more readable format
+              // Since deadline has passed, we calculate the difference
+              $diff = $deadline->diff($now);
+              $terlambatHari = $diff->days;
+              $terlambatJam = $diff->h;
+              $terlambatMenit = $diff->i;
+              
+              // Format keterlambatan: hari + jam + menit
+              $keterlambatanParts = [];
+              
+              if ($terlambatHari > 0) {
+                $keterlambatanParts[] = $terlambatHari . ' hari';
+              }
+              if ($terlambatJam > 0) {
+                $keterlambatanParts[] = $terlambatJam . ' jam';
+              }
+              if ($terlambatMenit > 0) {
+                $keterlambatanParts[] = $terlambatMenit . ' menit';
+              }
+              
+              // Join parts with space, or show "0 menit" if empty
+              $keterlambatanText = !empty($keterlambatanParts) 
+                ? implode(' ', $keterlambatanParts) 
+                : '0 menit';
             @endphp
-            <tr>
+            <tr class="clickable-row" onclick="window.location.href='{{ route('owner.workflow', ['id' => $dokumen->id]) }}'" title="Klik untuk melihat detail workflow dokumen">
               <td>{{ $dokumens->firstItem() + $index }}</td>
               <td>{{ $dokumen->nomor_agenda }}</td>
               <td>{{ $dokumen->nomor_spp }}</td>
@@ -367,11 +400,7 @@
               <td>
                 <span class="badge-terlambat">
                   <i class="fa-solid fa-exclamation-triangle"></i>
-                  @if($terlambatHari > 0)
-                    {{ $terlambatHari }} hari
-                  @else
-                    {{ $terlambatJam }} jam
-                  @endif
+                  {{ $keterlambatanText }}
                 </span>
               </td>
             </tr>

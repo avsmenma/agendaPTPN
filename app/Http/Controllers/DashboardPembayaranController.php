@@ -150,6 +150,9 @@ class DashboardPembayaranController extends Controller
                 'status_pembayaran.in' => 'Status pembayaran tidak valid.',
             ]);
 
+            // Store old value for logging
+            $oldStatusPembayaran = $dokumen->status_pembayaran;
+
             DB::transaction(function () use ($dokumen, $validated) {
                 $updateData = [
                     'status_pembayaran' => $validated['status_pembayaran'],
@@ -162,6 +165,23 @@ class DashboardPembayaranController extends Controller
 
                 $dokumen->update($updateData);
             });
+
+            $dokumen->refresh();
+
+            // Log status change
+            if ($oldStatusPembayaran != $dokumen->status_pembayaran) {
+                try {
+                    \App\Helpers\ActivityLogHelper::logDataEdited(
+                        $dokumen,
+                        'status_pembayaran',
+                        $oldStatusPembayaran ? ucfirst(str_replace('_', ' ', $oldStatusPembayaran)) : null,
+                        ucfirst(str_replace('_', ' ', $dokumen->status_pembayaran)),
+                        'pembayaran'
+                    );
+                } catch (\Exception $logException) {
+                    \Log::error('Failed to log status change: ' . $logException->getMessage());
+                }
+            }
 
             Log::info('Status pembayaran successfully updated', [
                 'document_id' => $dokumen->id,
@@ -209,11 +229,31 @@ class DashboardPembayaranController extends Controller
                 'link_bukti_pembayaran.max' => 'Link maksimal 1000 karakter.',
             ]);
 
+            // Store old value for logging
+            $oldLinkBukti = $dokumen->link_bukti_pembayaran;
+
             DB::transaction(function () use ($dokumen, $validated) {
                 $dokumen->update([
                     'link_bukti_pembayaran' => $validated['link_bukti_pembayaran'],
                 ]);
             });
+
+            $dokumen->refresh();
+
+            // Log link upload
+            if ($oldLinkBukti != $dokumen->link_bukti_pembayaran) {
+                try {
+                    \App\Helpers\ActivityLogHelper::logDataEdited(
+                        $dokumen,
+                        'link_bukti_pembayaran',
+                        $oldLinkBukti,
+                        $dokumen->link_bukti_pembayaran,
+                        'pembayaran'
+                    );
+                } catch (\Exception $logException) {
+                    \Log::error('Failed to log link upload: ' . $logException->getMessage());
+                }
+            }
 
             Log::info('Link bukti pembayaran successfully uploaded', [
                 'document_id' => $dokumen->id,
@@ -883,6 +923,7 @@ class DashboardPembayaranController extends Controller
             'Jenis Dokumen' => $dokumen->jenis_dokumen ?? '-',
             'SubBagian Pekerjaan' => $dokumen->jenis_sub_pekerjaan ?? '-',
             'Jenis Pembayaran' => $dokumen->jenis_pembayaran ?? '-',
+            'Kebun' => $dokumen->kebun ?? '-',
             'Dibayar Kepada' => $dokumen->dibayarKepadas->count() > 0
                 ? htmlspecialchars($dokumen->dibayarKepadas->pluck('nama_penerima')->join(', '))
                 : ($dokumen->dibayar_kepada ?? '-'),

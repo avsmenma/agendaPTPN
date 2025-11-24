@@ -150,6 +150,14 @@ Route::get('owner/rekapan/{dokumen}/detail', [OwnerDashboardController::class, '
     ->middleware('autologin', 'role:admin,owner')
     ->name('owner.rekapan.detail');
 
+Route::get('owner/rekapan/by-handler/{handler}', [OwnerDashboardController::class, 'rekapanByHandler'])
+    ->middleware('autologin', 'role:admin,owner')
+    ->name('owner.rekapan.byHandler');
+
+Route::get('owner/rekapan/detail/{type}', [OwnerDashboardController::class, 'rekapanDetail'])
+    ->middleware('autologin', 'role:admin,owner')
+    ->name('owner.rekapan.detailStats');
+
 Route::get('owner/rekapan-keterlambatan', [OwnerDashboardController::class, 'rekapanKeterlambatan'])
     ->middleware('autologin', 'role:admin,owner')
     ->name('owner.rekapan-keterlambatan');

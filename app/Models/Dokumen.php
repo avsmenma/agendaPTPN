@@ -24,6 +24,7 @@ class Dokumen extends Model
         'jenis_dokumen',
         'jenis_sub_pekerjaan',
         'jenis_pembayaran',
+        'kebun',
         'bagian',
         'nama_pengirim',
         'dibayar_kepada',
@@ -142,6 +143,11 @@ class Dokumen extends Model
     public function dibayarKepadas(): HasMany
     {
         return $this->hasMany(DibayarKepada::class);
+    }
+
+    public function activityLogs(): HasMany
+    {
+        return $this->hasMany(DokumenActivityLog::class)->orderBy('action_at', 'desc');
     }
 
     public function documentTrackings(): HasMany

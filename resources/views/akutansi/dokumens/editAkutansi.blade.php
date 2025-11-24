@@ -329,14 +329,43 @@
       </div>
       <div class="form-group">
         <label>Jenis Pembayaran</label>
-        <select>
-          <option>Pilih Opsi</option>
-          <option>Karyawan</option>
-          <option selected>Mitra</option>
-          <option>MPN</option>
-          <option>TBS</option>
-          <option>Dropping</option>
-          <option>Lainnya</option>
+        <select name="jenis_pembayaran">
+          <option value="">Pilih Opsi</option>
+          <option value="Karyawan" {{ old('jenis_pembayaran', $dokumen->jenis_pembayaran) == 'Karyawan' ? 'selected' : '' }}>Karyawan</option>
+          <option value="Mitra" {{ old('jenis_pembayaran', $dokumen->jenis_pembayaran) == 'Mitra' ? 'selected' : '' }}>Mitra</option>
+          <option value="MPN" {{ old('jenis_pembayaran', $dokumen->jenis_pembayaran) == 'MPN' ? 'selected' : '' }}>MPN</option>
+          <option value="TBS" {{ old('jenis_pembayaran', $dokumen->jenis_pembayaran) == 'TBS' ? 'selected' : '' }}>TBS</option>
+          <option value="Dropping" {{ old('jenis_pembayaran', $dokumen->jenis_pembayaran) == 'Dropping' ? 'selected' : '' }}>Dropping</option>
+          <option value="Lainnya" {{ old('jenis_pembayaran', $dokumen->jenis_pembayaran) == 'Lainnya' ? 'selected' : '' }}>Lainnya</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Kebun -->
+    <div class="form-row">
+      <div class="form-group">
+        <label>Kebun</label>
+        <select name="kebun">
+          <option value="">Pilih Kebun</option>
+          @php
+            $kebunOptions = [
+              'KEBUN-UNIT', 'REGION OFFICE', 'UNIT GRUP KALBAR', 'GUNUNG MELIAU',
+              'PKS GUNME', 'SUNGAI DEKAN', 'RIMBA BELIAN', 'PKS RIMBA BELIA',
+              'GUNUNG MAS', 'SINTANG', 'NGABANG', 'PKS NGABANG',
+              'PARINDU', 'PKS PARINDU', 'KEMBAYAN', 'PKS KEMBAYAN',
+              'PPPBB', 'UNIT GRUP KALSEL/TENG', 'DANAU SALAK', 'TAMBARANGAN',
+              'BATULICIN', 'PELAIHARI', 'PKS PELAIHARI', 'KUMAI',
+              'PKS PAMUKAN', 'PAMUKAN', 'PRYBB', 'RAREN BATUAH',
+              'UNIT GRUP KALTIM', 'TABARA', 'TAJATI', 'PANDAWA',
+              'LONGKALI', 'PKS SAMUNTAI', 'PKS LONG PINANG', 'KP JAKARTA',
+              'KP BALIKPAPAN'
+            ];
+            $currentKebun = old('kebun', $dokumen->kebun);
+            $currentKebunClean = preg_replace('/^\d+\s+/', '', $currentKebun);
+          @endphp
+          @foreach($kebunOptions as $kebun)
+            <option value="{{ $kebun }}" {{ ($currentKebun == $kebun || $currentKebunClean == $kebun) ? 'selected' : '' }}>{{ $kebun }}</option>
+          @endforeach
         </select>
       </div>
     </div>

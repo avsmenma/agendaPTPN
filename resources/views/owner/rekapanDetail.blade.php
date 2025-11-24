@@ -27,15 +27,20 @@
     justify-content: center;
   }
 
-  .stat-card:hover {
+  .stat-card.clickable {
+    cursor: pointer;
+  }
+
+  .stat-card.clickable:hover {
     transform: translateY(-8px);
     box-shadow: 0 12px 40px rgba(0, 123, 255, 0.2), 0 4px 16px rgba(0, 86, 179, 0.1);
     border-color: rgba(0, 123, 255, 0.15);
   }
 
-  .stat-card[style*="cursor: pointer"]:hover {
-    cursor: pointer;
-    border-color: rgba(0, 123, 255, 0.3);
+  .stat-card.clickable.active {
+    border: 2px solid #007bff;
+    box-shadow: 0 12px 40px rgba(0, 123, 255, 0.3), 0 4px 16px rgba(0, 86, 179, 0.15);
+    background: linear-gradient(135deg, #f0f7ff 0%, #e6f2ff 100%);
   }
 
   .stat-icon {
@@ -70,6 +75,45 @@
     text-transform: uppercase;
     letter-spacing: 0.5px;
     line-height: 1.4;
+  }
+
+  .back-button {
+    margin-bottom: 20px;
+  }
+
+  .back-button a {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    background: linear-gradient(135deg, #6c757d 0%, #5a6268 100%);
+    color: white;
+    text-decoration: none;
+    border-radius: 8px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+  }
+
+  .back-button a:hover {
+    background: linear-gradient(135deg, #5a6268 0%, #495057 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(108, 117, 125, 0.3);
+  }
+
+  .stat-icon.total {
+    background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+  }
+
+  .stat-icon.selesai {
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+  }
+
+  .stat-icon.proses {
+    background: linear-gradient(135deg, #ffc107 0%, #ff8c00 100%);
+  }
+
+  .stat-icon.terlambat {
+    background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
   }
 
   .filter-section {
@@ -111,11 +155,6 @@
     border-radius: 6px;
   }
 
-  .table-responsive {
-    scrollbar-width: thin;
-    scrollbar-color: #007bff #f1f1f1;
-  }
-
   .table thead {
     background: linear-gradient(135deg, #007bff 0%, #0056b3 100%) !important;
   }
@@ -153,33 +192,8 @@
     gap: 6px;
   }
 
-  .badge-draft {
-    background: linear-gradient(135deg, #ffc107 0%, #ff8c00 100%);
-    color: #333 !important;
-  }
-
-  .badge-sent {
-    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
-    color: white !important;
-  }
-
-  .badge-processing {
-    background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
-    color: white !important;
-  }
-
   .badge-completed {
     background: linear-gradient(135deg, #6f42c1 0%, #5a2d91 100%);
-    color: white !important;
-  }
-
-  .badge-returned {
-    background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
-    color: white !important;
-  }
-
-  .badge-unknown {
-    background: linear-gradient(135deg, #6c757d 0%, #5a6268 100%);
     color: white !important;
   }
 
@@ -215,7 +229,6 @@
     border-color: #007bff;
   }
 
-  /* Detail Row Styles */
   .main-row {
     cursor: pointer;
     transition: all 0.3s ease;
@@ -234,12 +247,134 @@
     background: #f8f9fa;
   }
 
+  .detail-row td {
+    padding: 0 !important;
+    border: none !important;
+  }
+
   .detail-content {
     padding: 24px;
     background: white;
     border-radius: 8px;
     margin: 16px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    overflow-x: auto;
+    width: calc(100% - 32px);
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  @media (max-width: 768px) {
+    .detail-content {
+      padding: 16px;
+      margin: 8px;
+      width: calc(100% - 16px);
+    }
+
+    .detail-content .detail-grid {
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+  }
+
+  .detail-content * {
+    box-sizing: border-box;
+  }
+
+  .detail-content .detail-grid {
+    width: 100%;
+    max-width: 100%;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+    margin-bottom: 24px;
+  }
+
+  .detail-content .detail-item {
+    min-width: 0;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    display: flex;
+    flex-direction: column;
+    padding: 12px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border-left: 3px solid #007bff;
+  }
+
+  .detail-content .detail-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #6c757d;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 6px;
+  }
+
+  .detail-content .detail-value {
+    font-size: 14px;
+    color: #2c3e50;
+    font-weight: 500;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    max-width: 100%;
+    line-height: 1.5;
+  }
+
+  .detail-content .detail-section-separator {
+    margin: 32px 0 20px 0;
+    padding: 16px;
+    background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+    border-radius: 8px;
+    text-align: center;
+  }
+
+  .detail-content .separator-content {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    color: white;
+    font-weight: 600;
+    font-size: 16px;
+    flex-wrap: wrap;
+  }
+
+  .detail-content .separator-content i {
+    font-size: 20px;
+  }
+
+  .detail-content .tax-badge {
+    background: rgba(255, 255, 255, 0.2);
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .detail-content .tax-section {
+    margin-top: 16px;
+  }
+
+  .detail-content .tax-field {
+    border-left-color: #28a745;
+  }
+
+  .detail-content .empty-field {
+    color: #6c757d;
+    font-style: italic;
+  }
+
+  .detail-content .tax-link {
+    color: #007bff;
+    text-decoration: none;
+    font-weight: 500;
+  }
+
+  .detail-content .tax-link:hover {
+    text-decoration: underline;
   }
 
   .loading-spinner {
@@ -281,6 +416,7 @@
     font-size: 14px;
     color: #2c3e50;
     font-weight: 500;
+    word-wrap: break-word;
   }
 
   .detail-section-separator {
@@ -337,125 +473,111 @@
   .tax-link:hover {
     text-decoration: underline;
   }
-
-  .badge-selesai {
-    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
-    color: white;
-    padding: 6px 12px;
-    border-radius: 12px;
-    font-size: 12px;
-    font-weight: 600;
-  }
-
-  .badge-proses {
-    background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
-    color: white;
-    padding: 6px 12px;
-    border-radius: 12px;
-    font-size: 12px;
-    font-weight: 600;
-  }
 </style>
 
 <div class="container-fluid">
+  <div class="back-button">
+    <a href="{{ route('owner.rekapan') }}">
+      <i class="fa-solid fa-arrow-left"></i>
+      Kembali ke Rekapan Dokumen
+    </a>
+  </div>
+
   <h2>
-    <i class="fa-solid fa-chart-pie"></i> 
-    Rekapan Dokumen
-    @if(isset($handler) && isset($handlerNames))
-      - {{ $handlerNames[$handler] }}
-    @endif
+    <i class="fa-solid fa-chart-line"></i> 
+    Detail {{ $typeNames[$type] }}
   </h2>
 
   <!-- Statistics Cards -->
-  <!-- Row 1: 3 Cards -->
   <div class="row mb-4">
-    <div class="col-lg-4 col-md-6 col-sm-12 mb-4">
-      <div class="stat-card" style="cursor: pointer;" onclick="window.location.href='{{ route('owner.rekapan.detailStats', ['type' => 'total']) }}'">
+    <div class="col-lg-3 col-md-6 col-sm-12 mb-4">
+      <div class="stat-card clickable {{ $statFilter == '' || $statFilter == 'total' ? 'active' : '' }}" 
+           data-filter="total" 
+           onclick="filterByStat('total')"
+           title="Klik untuk menampilkan semua dokumen">
         <div class="d-flex align-items-center justify-content-between">
           <div style="flex: 1;">
             <div class="stat-title">Total Dokumen</div>
-            <div class="stat-value">{{ $statistics['total_documents'] }}</div>
+            <div class="stat-value">{{ $totalDokumen }}</div>
           </div>
-          <div class="stat-icon">
+          <div class="stat-icon total">
             <i class="fa-solid fa-file-lines"></i>
           </div>
         </div>
       </div>
     </div>
-    <div class="col-lg-4 col-md-6 col-sm-12 mb-4">
-      <div class="stat-card" style="cursor: pointer;" onclick="window.location.href='{{ route('owner.rekapan.detailStats', ['type' => 'selesai']) }}'">
+    <div class="col-lg-3 col-md-6 col-sm-12 mb-4">
+      <div class="stat-card clickable {{ $statFilter == 'selesai' ? 'active' : '' }}" 
+           data-filter="selesai" 
+           onclick="filterByStat('selesai')"
+           title="Klik untuk menampilkan dokumen selesai">
         <div class="d-flex align-items-center justify-content-between">
           <div style="flex: 1;">
             <div class="stat-title">Dokumen Selesai</div>
-            <div class="stat-value">{{ $statistics['completed_documents'] }}</div>
+            <div class="stat-value">{{ $totalSelesai }}</div>
           </div>
-          <div class="stat-icon">
+          <div class="stat-icon selesai">
             <i class="fa-solid fa-check-circle"></i>
           </div>
         </div>
       </div>
     </div>
-    <div class="col-lg-4 col-md-6 col-sm-12 mb-4">
-      <div class="stat-card" style="cursor: pointer;" onclick="window.location.href='{{ route('owner.rekapan.detailStats', ['type' => 'ibuA']) }}'">
+    <div class="col-lg-3 col-md-6 col-sm-12 mb-4">
+      <div class="stat-card clickable {{ $statFilter == 'proses' ? 'active' : '' }}" 
+           data-filter="proses" 
+           onclick="filterByStat('proses')"
+           title="Klik untuk menampilkan dokumen proses">
         <div class="d-flex align-items-center justify-content-between">
           <div style="flex: 1;">
-            <div class="stat-title">Dokumen Ibu Tarapul</div>
-            <div class="stat-value">{{ $statistics['ibu_tarapul'] }}</div>
+            <div class="stat-title">Dokumen Proses</div>
+            <div class="stat-value">{{ $totalProses }}</div>
           </div>
-          <div class="stat-icon" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%);">
-            <i class="fa-solid fa-user"></i>
+          <div class="stat-icon proses">
+            <i class="fa-solid fa-spinner"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-3 col-md-6 col-sm-12 mb-4">
+      <div class="stat-card clickable {{ $statFilter == 'terlambat' ? 'active' : '' }}" 
+           data-filter="terlambat" 
+           onclick="filterByStat('terlambat')"
+           title="Klik untuk menampilkan dokumen terlambat">
+        <div class="d-flex align-items-center justify-content-between">
+          <div style="flex: 1;">
+            <div class="stat-title">Dokumen Terlambat</div>
+            <div class="stat-value">{{ $totalTerlambat }}</div>
+          </div>
+          <div class="stat-icon terlambat">
+            <i class="fa-solid fa-exclamation-triangle"></i>
           </div>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Row 2: 3 Cards -->
-  <div class="row mb-4">
-    <div class="col-lg-4 col-md-6 col-sm-12 mb-4">
-      <div class="stat-card" style="cursor: pointer;" onclick="window.location.href='{{ route('owner.rekapan.detailStats', ['type' => 'ibuB']) }}'">
-        <div class="d-flex align-items-center justify-content-between">
-          <div style="flex: 1;">
-            <div class="stat-title">Dokumen Ibu Yuni</div>
-            <div class="stat-value">{{ $statistics['ibu_yuni'] }}</div>
-          </div>
-          <div class="stat-icon" style="background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);">
-            <i class="fa-solid fa-user-check"></i>
-          </div>
-        </div>
-      </div>
-    </div>
-    <div class="col-lg-4 col-md-6 col-sm-12 mb-4">
-      <div class="stat-card" style="cursor: pointer;" onclick="window.location.href='{{ route('owner.rekapan.detailStats', ['type' => 'perpajakan']) }}'">
-        <div class="d-flex align-items-center justify-content-between">
-          <div style="flex: 1;">
-            <div class="stat-title">Dokumen Team Perpajakan</div>
-            <div class="stat-value">{{ $statistics['perpajakan'] }}</div>
-          </div>
-          <div class="stat-icon" style="background: linear-gradient(135deg, #6f42c1 0%, #5a2d91 100%);">
-            <i class="fa-solid fa-file-invoice-dollar"></i>
-          </div>
-        </div>
-      </div>
-    </div>
-    <div class="col-lg-4 col-md-6 col-sm-12 mb-4">
-      <div class="stat-card" style="cursor: pointer;" onclick="window.location.href='{{ route('owner.rekapan.detailStats', ['type' => 'akutansi']) }}'">
-        <div class="d-flex align-items-center justify-content-between">
-          <div style="flex: 1;">
-            <div class="stat-title">Dokumen Team Akutansi</div>
-            <div class="stat-value">{{ $statistics['akutansi'] }}</div>
-          </div>
-          <div class="stat-icon" style="background: linear-gradient(135deg, #ffc107 0%, #ff8c00 100%);">
-            <i class="fa-solid fa-calculator"></i>
-          </div>
-        </div>
+  <!-- Info Section -->
+  <div class="alert alert-info" style="border-radius: 12px; border-left: 4px solid #007bff; margin-bottom: 30px;">
+    <div class="d-flex align-items-start">
+      <i class="fa-solid fa-info-circle me-3" style="font-size: 20px; margin-top: 2px;"></i>
+      <div>
+        <strong>Informasi Statistik:</strong>
+        <ul class="mb-0 mt-2" style="padding-left: 20px;">
+          <li><strong>Total Dokumen:</strong> Semua dokumen yang sesuai dengan kategori {{ $typeNames[$type] }}</li>
+          <li><strong>Dokumen Selesai:</strong> Dokumen yang sudah selesai diproses (status: selesai, approved_data_sudah_terkirim, atau sudah_dibayar)</li>
+          <li><strong>Dokumen Proses:</strong> Dokumen yang sedang dalam proses (status: sedang diproses, sent_to_*, proses_*)</li>
+          <li><strong>Dokumen Terlambat:</strong> Dokumen yang memiliki deadline dan sudah melewati deadline, namun belum selesai</li>
+        </ul>
       </div>
     </div>
   </div>
 
   <!-- Filter Section -->
   <div class="filter-section">
-    <form method="GET" action="{{ url('/owner/rekapan') }}" class="row g-3">
+    <form method="GET" action="{{ route('owner.rekapan.detailStats', ['type' => $type]) }}" class="row g-3">
+      @if($statFilter)
+        <input type="hidden" name="stat_filter" value="{{ $statFilter }}">
+      @endif
       <div class="col-md-3">
         <label class="form-label">Cari Dokumen</label>
         <input type="text" name="search" class="form-control" value="{{ request('search') }}" placeholder="Nomor agenda, SPP, dll">
@@ -474,9 +596,7 @@
         <select name="bagian" class="form-select">
           <option value="">Semua Bagian</option>
           @foreach($bagianList as $code => $name)
-            <option value="{{ $code }}" {{ $selectedBagian == $code ? 'selected' : '' }}>
-              {{ $name }} ({{ $bagianCounts[$code] ?? 0 }} dokumen)
-            </option>
+            <option value="{{ $code }}" {{ $selectedBagian == $code ? 'selected' : '' }}>{{ $name }}</option>
           @endforeach
         </select>
       </div>
@@ -493,6 +613,12 @@
         <button type="submit" class="btn btn-primary w-100">
           <i class="fa-solid fa-search"></i> Filter
         </button>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">&nbsp;</label>
+        <a href="{{ route('owner.rekapan.detailStats', ['type' => $type]) }}" class="btn btn-secondary w-100">
+          <i class="fa-solid fa-refresh"></i> Reset
+        </a>
       </div>
     </form>
   </div>
@@ -553,7 +679,7 @@
             </tr>
           @empty
             <tr>
-              <td colspan="7" class="text-center py-5">
+              <td colspan="8" class="text-center py-5">
                 <i class="fa-solid fa-inbox fa-3x text-muted mb-3"></i>
                 <p class="text-muted">Tidak ada dokumen ditemukan</p>
               </td>
@@ -591,6 +717,28 @@
 </div>
 
 <script>
+function filterByStat(filterType) {
+  // Get current URL parameters
+  const urlParams = new URLSearchParams(window.location.search);
+  
+  // Update or remove stat_filter parameter
+  if (filterType === 'total' || filterType === '') {
+    urlParams.delete('stat_filter');
+  } else {
+    urlParams.set('stat_filter', filterType);
+  }
+  
+  // Reset to page 1 when filtering
+  urlParams.delete('page');
+  
+  // Build new URL
+  const baseUrl = window.location.pathname;
+  const newUrl = baseUrl + (urlParams.toString() ? '?' + urlParams.toString() : '');
+  
+  // Navigate to new URL
+  window.location.href = newUrl;
+}
+
 function toggleDetail(docId) {
   const detailRow = document.getElementById('detail-' + docId);
   const mainRow = document.querySelector(`tr[data-id="${docId}"]`);

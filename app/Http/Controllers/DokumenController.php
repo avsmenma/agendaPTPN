@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\DB;
 use Exception;
 use Carbon\Carbon;
 use App\Helpers\SearchHelper;
+use App\Helpers\ActivityLogHelper;
 
 class DokumenController extends Controller
 {
@@ -326,6 +327,7 @@ class DokumenController extends Controller
                 'jenis_dokumen' => $request->jenis_dokumen,
                 'jenis_sub_pekerjaan' => $request->jenis_sub_pekerjaan,
                 'jenis_pembayaran' => $request->jenis_pembayaran,
+                'kebun' => $request->kebun,
                 'bagian' => $request->bagian,
                 'nama_pengirim' => $request->nama_pengirim,
                 // Remove old dibayar_kepada field, will handle separately
@@ -377,6 +379,13 @@ class DokumenController extends Controller
             }
 
             DB::commit();
+
+            // Log activity: dokumen dibuat
+            try {
+                ActivityLogHelper::logCreated($dokumen);
+            } catch (\Exception $logException) {
+                \Log::error('Failed to log document creation: ' . $logException->getMessage());
+            }
 
             return redirect()->route('dokumens.index')
                 ->with('success', 'Dokumen berhasil ditambahkan dengan nomor agenda: ' . $dokumen->nomor_agenda);
@@ -449,6 +458,7 @@ class DokumenController extends Controller
                 'jenis_dokumen' => $request->jenis_dokumen,
                 'jenis_sub_pekerjaan' => $request->jenis_sub_pekerjaan,
                 'jenis_pembayaran' => $request->jenis_pembayaran,
+                'kebun' => $request->kebun,
                 'bagian' => $request->bagian,
                 'nama_pengirim' => $request->nama_pengirim,
                 // Remove old dibayar_kepada field, will handle separately
@@ -582,6 +592,20 @@ class DokumenController extends Controller
 
             $dokumen->refresh();
             DB::commit();
+
+            // Log activity: dokumen dikirim ke Ibu Yuni (di stage SENDER/Ibu Tarapul)
+            try {
+                ActivityLogHelper::logSent($dokumen, 'ibuB', 'ibuA');
+            } catch (\Exception $logException) {
+                \Log::error('Failed to log document sent: ' . $logException->getMessage());
+            }
+
+            // Log activity: dokumen masuk/diterima (di stage REVIEWER/Ibu Yuni)
+            try {
+                ActivityLogHelper::logReceived($dokumen, 'ibuB');
+            } catch (\Exception $logException) {
+                \Log::error('Failed to log document received: ' . $logException->getMessage());
+            }
 
             // Broadcast event to IbuB (after commit to ensure data is saved)
             try {

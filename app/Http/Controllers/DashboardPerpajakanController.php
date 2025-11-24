@@ -282,6 +282,7 @@ class DashboardPerpajakanController extends Controller
                 'jenis_dokumen' => !empty($request->jenis_dokumen) ? $request->jenis_dokumen : $dokumen->jenis_dokumen,
                 'jenis_sub_pekerjaan' => $request->jenis_sub_pekerjaan,
                 'jenis_pembayaran' => $request->jenis_pembayaran,
+                'kebun' => $request->kebun,
                 'dibayar_kepada' => $request->dibayar_kepada,
                 'no_berita_acara' => $request->no_berita_acara,
                 'tanggal_berita_acara' => $request->tanggal_berita_acara,
@@ -301,7 +302,62 @@ class DashboardPerpajakanController extends Controller
                 'link_dokumen_pajak' => $request->link_dokumen_pajak,
             ];
 
+            // Store old values for logging
+            $oldValues = [
+                'npwp' => $dokumen->npwp,
+                'status_perpajakan' => $dokumen->status_perpajakan,
+                'no_faktur' => $dokumen->no_faktur,
+                'tanggal_faktur' => $dokumen->tanggal_faktur ? $dokumen->tanggal_faktur->format('Y-m-d') : null,
+                'tanggal_selesai_verifikasi_pajak' => $dokumen->tanggal_selesai_verifikasi_pajak ? $dokumen->tanggal_selesai_verifikasi_pajak->format('Y-m-d') : null,
+                'jenis_pph' => $dokumen->jenis_pph,
+                'dpp_pph' => $dokumen->dpp_pph,
+                'ppn_terhutang' => $dokumen->ppn_terhutang,
+                'link_dokumen_pajak' => $dokumen->link_dokumen_pajak,
+            ];
+
             $dokumen->update($updateData);
+            $dokumen->refresh();
+
+            // Log changes for perpajakan-specific fields
+            $perpajakanFields = [
+                'npwp' => 'NPWP',
+                'status_perpajakan' => 'Status Perpajakan',
+                'no_faktur' => 'No Faktur',
+                'tanggal_faktur' => 'Tanggal Faktur',
+                'tanggal_selesai_verifikasi_pajak' => 'Tanggal Selesai Verifikasi Pajak',
+                'jenis_pph' => 'Jenis PPh',
+                'dpp_pph' => 'DPP PPh',
+                'ppn_terhutang' => 'PPN Terhutang',
+                'link_dokumen_pajak' => 'Link Dokumen Pajak',
+            ];
+
+            foreach ($perpajakanFields as $field => $fieldName) {
+                $oldValue = $oldValues[$field];
+                $newValue = null;
+                
+                if ($field === 'tanggal_faktur' || $field === 'tanggal_selesai_verifikasi_pajak') {
+                    $newValue = $dokumen->$field ? $dokumen->$field->format('Y-m-d') : null;
+                } elseif ($field === 'dpp_pph' || $field === 'ppn_terhutang') {
+                    $newValue = $dokumen->$field ? number_format($dokumen->$field, 0, ',', '.') : null;
+                } else {
+                    $newValue = $dokumen->$field;
+                }
+
+                // Only log if value actually changed
+                if ($oldValue != $newValue) {
+                    try {
+                        \App\Helpers\ActivityLogHelper::logDataEdited(
+                            $dokumen,
+                            $field,
+                            $oldValue,
+                            $newValue,
+                            'perpajakan'
+                        );
+                    } catch (\Exception $logException) {
+                        \Log::error('Failed to log data edit for ' . $field . ': ' . $logException->getMessage());
+                    }
+                }
+            }
 
             // Update PO numbers
             $dokumen->dokumenPos()->delete();
@@ -397,6 +453,21 @@ class DashboardPerpajakanController extends Controller
                 'processed_at' => now(),
             ]);
 
+            // Log activity: deadline diatur oleh Team Perpajakan
+            try {
+                \App\Helpers\ActivityLogHelper::logDeadlineSet(
+                    $dokumen->fresh(),
+                    'perpajakan',
+                    [
+                        'deadline_days' => $deadlineDays,
+                        'deadline_at' => $deadlineAt->format('Y-m-d H:i:s'),
+                        'deadline_note' => $deadlineNote,
+                    ]
+                );
+            } catch (\Exception $logException) {
+                \Log::error('Failed to log deadline set: ' . $logException->getMessage());
+            }
+
             return response()->json([
                 'success' => true,
                 'message' => "Deadline berhasil ditetapkan ({$deadlineDays} hari). Dokumen sekarang terbuka untuk diproses.",
@@ -454,6 +525,7 @@ class DashboardPerpajakanController extends Controller
             'Jenis Dokumen' => $dokumen->jenis_dokumen ?? '-',
             'SubBagian Pekerjaan' => $dokumen->jenis_sub_pekerjaan ?? '-',
             'Jenis Pembayaran' => $dokumen->jenis_pembayaran ?? '-',
+            'Kebun' => $dokumen->kebun ?? '-',
             'Dibayar Kepada' => $dokumen->dibayarKepadas->count() > 0
                 ? htmlspecialchars($dokumen->dibayarKepadas->pluck('nama_penerima')->join(', '))
                 : ($dokumen->dibayar_kepada ?? '-'),
@@ -710,6 +782,23 @@ class DashboardPerpajakanController extends Controller
             ]);
 
             \DB::commit();
+
+            // Log activity: dokumen dikirim ke akutansi oleh Team Perpajakan
+            try {
+                \App\Helpers\ActivityLogHelper::logSent(
+                    $dokumen->fresh(),
+                    'akutansi',
+                    'perpajakan'
+                );
+                
+                // Log activity: dokumen masuk/diterima di stage akutansi
+                \App\Helpers\ActivityLogHelper::logReceived(
+                    $dokumen->fresh(),
+                    'akutansi'
+                );
+            } catch (\Exception $logException) {
+                \Log::error('Failed to log document sent: ' . $logException->getMessage());
+            }
 
             return response()->json([
                 'success' => true,

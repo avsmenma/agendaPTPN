@@ -431,6 +431,39 @@
       </div>
     </div>
 
+    <!-- Kebun -->
+    <div class="form-row">
+      <div class="form-group">
+        <label>Kebun</label>
+        <select name="kebun">
+          <option value="">Pilih Kebun</option>
+          @php
+            $kebunOptions = [
+              'KEBUN-UNIT', 'REGION OFFICE', 'UNIT GRUP KALBAR', 'GUNUNG MELIAU',
+              'PKS GUNME', 'SUNGAI DEKAN', 'RIMBA BELIAN', 'PKS RIMBA BELIA',
+              'GUNUNG MAS', 'SINTANG', 'NGABANG', 'PKS NGABANG',
+              'PARINDU', 'PKS PARINDU', 'KEMBAYAN', 'PKS KEMBAYAN',
+              'PPPBB', 'UNIT GRUP KALSEL/TENG', 'DANAU SALAK', 'TAMBARANGAN',
+              'BATULICIN', 'PELAIHARI', 'PKS PELAIHARI', 'KUMAI',
+              'PKS PAMUKAN', 'PAMUKAN', 'PRYBB', 'RAREN BATUAH',
+              'UNIT GRUP KALTIM', 'TABARA', 'TAJATI', 'PANDAWA',
+              'LONGKALI', 'PKS SAMUNTAI', 'PKS LONG PINANG', 'KP JAKARTA',
+              'KP BALIKPAPAN'
+            ];
+            // Handle old values with numbers for backward compatibility
+            $currentKebun = old('kebun', $dokumen->kebun);
+            $currentKebunClean = preg_replace('/^\d+\s+/', '', $currentKebun);
+          @endphp
+          @foreach($kebunOptions as $kebun)
+            <option value="{{ $kebun }}" {{ ($currentKebun == $kebun || $currentKebunClean == $kebun) ? 'selected' : '' }}>{{ $kebun }}</option>
+          @endforeach
+        </select>
+        @error('kebun')
+            <div class="text-danger" style="color: #dc3545; font-size: 12px; margin-top: 5px;">{{ $message }}</div>
+        @enderror
+      </div>
+    </div>
+
     <!-- Nomor PR dan PO -->
     <div class="section-title">Nomor PR & PO</div>
 

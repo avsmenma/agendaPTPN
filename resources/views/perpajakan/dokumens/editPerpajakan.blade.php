@@ -414,6 +414,34 @@
 
           <div class="form-row">
             <div class="form-group">
+              <label for="kebun">Kebun</label>
+              <select id="kebun" name="kebun">
+                <option value="">Pilih Kebun</option>
+                @php
+                  $kebunOptions = [
+                    'KEBUN-UNIT', 'REGION OFFICE', 'UNIT GRUP KALBAR', 'GUNUNG MELIAU',
+                    'PKS GUNME', 'SUNGAI DEKAN', 'RIMBA BELIAN', 'PKS RIMBA BELIA',
+                    'GUNUNG MAS', 'SINTANG', 'NGABANG', 'PKS NGABANG',
+                    'PARINDU', 'PKS PARINDU', 'KEMBAYAN', 'PKS KEMBAYAN',
+                    'PPPBB', 'UNIT GRUP KALSEL/TENG', 'DANAU SALAK', 'TAMBARANGAN',
+                    'BATULICIN', 'PELAIHARI', 'PKS PELAIHARI', 'KUMAI',
+                    'PKS PAMUKAN', 'PAMUKAN', 'PRYBB', 'RAREN BATUAH',
+                    'UNIT GRUP KALTIM', 'TABARA', 'TAJATI', 'PANDAWA',
+                    'LONGKALI', 'PKS SAMUNTAI', 'PKS LONG PINANG', 'KP JAKARTA',
+                    'KP BALIKPAPAN'
+                  ];
+                  $currentKebun = old('kebun', $dokumen->kebun);
+                  $currentKebunClean = preg_replace('/^\d+\s+/', '', $currentKebun);
+                @endphp
+                @foreach($kebunOptions as $kebun)
+                  <option value="{{ $kebun }}" {{ ($currentKebun == $kebun || $currentKebunClean == $kebun) ? 'selected' : '' }}>{{ $kebun }}</option>
+                @endforeach
+              </select>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
               <label for="no_berita_acara">No Berita Acara</label>
               <input type="text" id="no_berita_acara" name="no_berita_acara" value="{{ old('no_berita_acara', $dokumen->no_berita_acara) }}">
             </div>

@@ -454,6 +454,38 @@
       </div>
     </div>
 
+    <!-- Kebun -->
+    <div class="form-row">
+      <div class="form-group">
+        <label>Kebun</label>
+        <select name="kebun">
+          <option value="">Pilih Kebun</option>
+          @php
+            $kebunOptions = [
+              'KEBUN-UNIT', 'REGION OFFICE', 'UNIT GRUP KALBAR', 'GUNUNG MELIAU',
+              'PKS GUNME', 'SUNGAI DEKAN', 'RIMBA BELIAN', 'PKS RIMBA BELIA',
+              'GUNUNG MAS', 'SINTANG', 'NGABANG', 'PKS NGABANG',
+              'PARINDU', 'PKS PARINDU', 'KEMBAYAN', 'PKS KEMBAYAN',
+              'PPPBB', 'UNIT GRUP KALSEL/TENG', 'DANAU SALAK', 'TAMBARANGAN',
+              'BATULICIN', 'PELAIHARI', 'PKS PELAIHARI', 'KUMAI',
+              'PKS PAMUKAN', 'PAMUKAN', 'PRYBB', 'RAREN BATUAH',
+              'UNIT GRUP KALTIM', 'TABARA', 'TAJATI', 'PANDAWA',
+              'LONGKALI', 'PKS SAMUNTAI', 'PKS LONG PINANG', 'KP JAKARTA',
+              'KP BALIKPAPAN'
+            ];
+            $oldKebun = old('kebun');
+            $oldKebunClean = $oldKebun ? preg_replace('/^\d+\s+/', '', $oldKebun) : '';
+          @endphp
+          @foreach($kebunOptions as $kebun)
+            <option value="{{ $kebun }}" {{ ($oldKebun == $kebun || $oldKebunClean == $kebun) ? 'selected' : '' }}>{{ $kebun }}</option>
+          @endforeach
+        </select>
+        @error('kebun')
+            <div class="text-danger" style="color: #dc3545; font-size: 12px; margin-top: 5px;">{{ $message }}</div>
+        @enderror
+      </div>
+    </div>
+
     <!-- Nomor PR dan PO (Dipindahkan keatas) -->
     <div class="section-title">Nomor PR & PO</div>
 
@@ -1054,6 +1086,7 @@
     fillFormField('jenis_dokumen', randomData.jenis_dokumen, 'select');
     fillFormField('jenis_sub_pekerjaan', randomData.jenis_sub_pekerjaan, 'select');
     fillFormField('jenis_pembayaran', randomData.jenis_pembayaran, 'select');
+    fillFormField('kebun', randomData.kebun, 'select');
     fillFormField('no_berita_acara', randomData.no_berita_acara);
     fillFormField('tanggal_berita_acara', randomData.tanggal_berita_acara, 'date');
     fillFormField('no_spk', randomData.no_spk);
@@ -1074,6 +1107,18 @@
     const categories = ['Operasional', 'Investasi On Farm', 'Pemeliharaan'];
     const kategoris = ['Administrasi & Umum', 'Exploitasi', 'Pembangunan'];
     const jenisPembayaran = ['Mitra', 'Internal', 'Kontrak'];
+    const kebunOptions = [
+      'KEBUN-UNIT', 'REGION OFFICE', 'UNIT GRUP KALBAR', 'GUNUNG MELIAU',
+      'PKS GUNME', 'SUNGAI DEKAN', 'RIMBA BELIAN', 'PKS RIMBA BELIA',
+      'GUNUNG MAS', 'SINTANG', 'NGABANG', 'PKS NGABANG',
+      'PARINDU', 'PKS PARINDU', 'KEMBAYAN', 'PKS KEMBAYAN',
+      'PPPBB', 'UNIT GRUP KALSEL/TENG', 'DANAU SALAK', 'TAMBARANGAN',
+      'BATULICIN', 'PELAIHARI', 'PKS PELAIHARI', 'KUMAI',
+      'PKS PAMUKAN', 'PAMUKAN', 'PRYBB', 'RAREN BATUAH',
+      'UNIT GRUP KALTIM', 'TABARA', 'TAJATI', 'PANDAWA',
+      'LONGKALI', 'PKS SAMUNTAI', 'PKS LONG PINANG', 'KP JAKARTA',
+      'KP BALIKPAPAN'
+    ];
     const namaPengirim = ['Ahmad Wijaya', 'Siti Nurhaliza', 'Budi Santoso', 'Diana Putri', 'Eko Prasetyo'];
 
     const currentDate = new Date();
@@ -1091,6 +1136,7 @@
       jenis_dokumen: kategoris[Math.floor(Math.random() * kategoris.length)],
       jenis_sub_pekerjaan: 'Pembayaran Tagihan',
       jenis_pembayaran: jenisPembayaran[Math.floor(Math.random() * jenisPembayaran.length)],
+      kebun: kebunOptions[Math.floor(Math.random() * kebunOptions.length)],
       no_berita_acara: `BAST/${Math.floor(Math.random() * 100)}/${Math.floor(Math.random() * 31)}/XI/2024`,
       tanggal_berita_acara: formatDate(randomDate),
       no_spk: `SPK/${Math.floor(Math.random() * 200)}/TEP/${Math.floor(Math.random() * 12)}/IX/2024`,
