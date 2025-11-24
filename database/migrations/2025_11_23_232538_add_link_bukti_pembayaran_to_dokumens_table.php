@@ -12,7 +12,10 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('dokumens', function (Blueprint $table) {
-            $table->text('link_bukti_pembayaran')->nullable()->after('status_pembayaran');
+            // Check if column exists before adding
+            if (!Schema::hasColumn('dokumens', 'link_bukti_pembayaran')) {
+                $table->text('link_bukti_pembayaran')->nullable();
+            }
         });
     }
 
