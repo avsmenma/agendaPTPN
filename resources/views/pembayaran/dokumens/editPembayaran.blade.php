@@ -445,7 +445,7 @@
     <div class="divider"></div>
     <div class="section-title">
         <i class="fa-solid fa-file-invoice-dollar"></i>
-        Informasi Perpajakan
+        Informasi Team Perpajakan
     </div>
 
     <div class="info-grid-3">

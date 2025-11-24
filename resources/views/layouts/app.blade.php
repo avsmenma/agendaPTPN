@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="id">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -31,6 +31,8 @@
       color: #01545A;
       font-weight: 600;
       padding-top: 20px;
+      display: flex;
+      flex-direction: column;
     }
 
     .sidebar a {
@@ -584,6 +586,8 @@
     <hr>
 
         @php
+            // Check if user is owner
+            $isOwner = auth()->check() && (auth()->user()->role === 'owner' || auth()->user()->role === 'Owner' || auth()->user()->role === 'OWNER' || auth()->user()->role === 'Admin' || auth()->user()->role === 'admin');
             $module = $module ?? 'IbuA';
             $dashboardUrl = match($module) {
                 'IbuA' => '/dashboard',
@@ -629,16 +633,39 @@
             };
         @endphp
 
-        <a href="{{ url($dashboardUrl) }}" class="{{ $menuDashboard ?? '' }}"><i class="fa-solid fa-house"></i> Home</a>
+        @if($isOwner)
+            <!-- Owner Menu - Clean and Simple -->
+            <div style="flex: 1; display: flex; flex-direction: column;">
+                <a href="{{ url('/owner/dashboard') }}" class="{{ $menuDashboard ?? '' }}">
+                    <i class="fa-solid fa-satellite-dish"></i> Dashboard Owner
+                </a>
+                <a href="{{ url('/owner/rekapan') }}" class="{{ $menuRekapan ?? '' }}">
+                    <i class="fa-solid fa-chart-pie"></i> Rekapan Dokumen
+                </a>
+                <a href="{{ url('/owner/rekapan-keterlambatan') }}" class="{{ $menuRekapanKeterlambatan ?? '' }}">
+                    <i class="fa-solid fa-exclamation-triangle"></i> Rekapan Keterlambatan
+                </a>
+            </div>
+            <div style="margin-top: auto; padding-bottom: 20px;">
+                <a href="{{ url('/logout') }}" onclick="event.preventDefault(); document.getElementById('logout-form-owner').submit();" style="display: block; margin-left: 30px; margin-top: 20px;">
+                    <i class="fa-solid fa-sign-out-alt"></i> Keluar
+                </a>
+                <form id="logout-form-owner" action="{{ url('/logout') }}" method="POST" style="display: none;">
+                    @csrf
+                </form>
+            </div>
+        @else
+            <!-- Regular Menu for other roles -->
+            <a href="{{ url($dashboardUrl) }}" class="{{ $menuDashboard ?? '' }}"><i class="fa-solid fa-house"></i> Home</a>
 
-    <!-- Owner Dashboard - Only for Admin users -->
-    @if(auth()->check() && (auth()->user()->role === 'Admin' || auth()->user()->role === 'admin'))
-        <a href="{{ url('/owner/dashboard') }}" class="nav-link">
-            <i class="fa-solid fa-satellite-dish"></i> Owner Dashboard
-        </a>
-    @endif
+            <!-- Owner Dashboard - Only for Admin users -->
+            @if(auth()->check() && (auth()->user()->role === 'Admin' || auth()->user()->role === 'admin'))
+                <a href="{{ url('/owner/dashboard') }}" class="nav-link">
+                    <i class="fa-solid fa-satellite-dish"></i> Owner Dashboard
+                </a>
+            @endif
 
-    <!-- Universal Daftar Masuk Dokumen - Untuk semua user kecuali IbuA -->
+            <!-- Universal Daftar Masuk Dokumen - Untuk semua user kecuali IbuA -->
     @php
         $currentUserRole = 'IbuA'; // Default
         if (auth()->check()) {
@@ -661,6 +688,7 @@
     @endphp
 
     
+    @unless($isOwner)
     <!-- Dropdown Menu Dokumen - Customized per Module -->
     <div class="dropdown-menu-custom">
       <div class="dropdown-toggle {{ $menuDokumen ?? '' }}" id="dokumenDropdown">
@@ -740,12 +768,17 @@
     </div>
 
     <a href="{{ url($diagramUrl) }}" class="{{ $menuDiagram ?? '' }}"><i class="fa-solid fa-chart-simple"></i> Diagram</a>
+    @endunless
+
+    @unless($isOwner)
     <form id="logout-form" action="{{ route('logout') }}" method="POST" style="display: none;">
       @csrf
     </form>
     <a href="#" onclick="event.preventDefault(); document.getElementById('logout-form').submit();">
       <i class="fa-solid fa-right-from-bracket"></i> Logout
     </a>
+    @endunless
+        @endif
   </div>
 
   <!-- Content -->
@@ -1063,7 +1096,7 @@
                   <strong>No. Agenda:</strong> ${doc.nomor_agenda || '-'}<br>
                   <strong>No. SPP:</strong> ${doc.nomor_spp || '-'}<br>
                   <strong>Alasan:</strong> <span class="alasan-text">${doc.alasan_pengembalian || 'Tidak ada alasan'}</span><br>
-                  <small style="opacity: 0.8;">Dikembalikan dari IbuB - ${doc.returned_at}</small>
+                  <small style="opacity: 0.8;">Dikembalikan dari Ibu Yuni - ${doc.returned_at}</small>
                 </div>
                 <div class="notification-footer">
                   <button class="btn-refresh" onclick="refreshPage()">
@@ -1080,7 +1113,7 @@
                 <div class="notification-header notification-header-perpajakan">
                   <div class="notification-title">
                     <i class="fa-solid fa-file-invoice-dollar"></i>
-                    Dokumen Baru untuk Perpajakan
+                    Dokumen Baru untuk Team Perpajakan
                   </div>
                   <button class="notification-close" onclick="removeNotification('${notificationId}')">
                     <i class="fa-solid fa-times"></i>
@@ -1091,7 +1124,7 @@
                   <strong>No. SPP:</strong> ${doc.nomor_spp || '-'}<br>
                   <strong>Nilai:</strong> ${formattedRupiah}<br>
                   <strong>Status Perpajakan:</strong> ${doc.status_perpajakan || 'Belum diproses'}<br>
-                  <small style="opacity: 0.8;">Dokumen baru dari IbuB - ${doc.sent_at}</small>
+                  <small style="opacity: 0.8;">Dokumen baru dari Ibu Yuni - ${doc.sent_at}</small>
                 </div>
                 <div class="notification-footer">
                   <button class="btn-refresh" onclick="refreshPage()">
@@ -1108,7 +1141,7 @@
                 <div class="notification-header notification-header-akutansi">
                   <div class="notification-title">
                     <i class="fa-solid fa-calculator"></i>
-                    Dokumen Baru untuk Akutansi
+                    Dokumen Baru untuk Team Akutansi
                   </div>
                   <button class="notification-close" onclick="removeNotification('${notificationId}')">
                     <i class="fa-solid fa-times"></i>

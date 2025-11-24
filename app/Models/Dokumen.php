@@ -74,6 +74,10 @@ class Dokumen extends Model
         'sent_to_perpajakan_at',
         'processed_perpajakan_at',
         'returned_from_perpajakan_at',
+        // Pembayaran fields
+        'sent_to_pembayaran_at',
+        'status_pembayaran',
+        'link_bukti_pembayaran',
         // Universal Approval System fields
         'universal_approval_for',
         'universal_approval_sent_at',
@@ -108,6 +112,8 @@ class Dokumen extends Model
         'sent_to_perpajakan_at' => 'datetime',
         'processed_perpajakan_at' => 'datetime',
         'returned_from_perpajakan_at' => 'datetime',
+        // Pembayaran casts
+        'sent_to_pembayaran_at' => 'datetime',
         // Universal Approval System casts
         'universal_approval_sent_at' => 'datetime',
         'universal_approval_responded_at' => 'datetime',

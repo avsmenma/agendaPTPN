@@ -4,6 +4,12 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\Dokumen;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Auth;
+use App\Helpers\DokumenHelper;
+use Illuminate\Support\Facades\Response;
 
 class DashboardPembayaranController extends Controller
 {
@@ -42,39 +48,45 @@ class DashboardPembayaranController extends Controller
             $query->where('current_handler', 'pembayaran')
                   ->orWhere('status', 'sent_to_pembayaran')
                   ->orWhere(function($subQuery) {
-                      $subQuery->where('status', 'sedang_diproses')
+                      $subQuery->where('status', 'sedang diproses')
                                ->where('universal_approval_for', 'pembayaran');
                   })
-                  ->orWhere('created_by', 'pembayaran');
+                  ->orWhere('created_by', 'pembayaran')
+                  ->orWhereNotNull('status_pembayaran'); // Include documents with payment status
         });
 
         // Apply status filter if specified
         if ($statusFilter) {
             switch ($statusFilter) {
                 case 'belum_siap_dibayar':
+                    // Dokumen yang belum siap = belum ada status_pembayaran atau masih sent_to_pembayaran
                     $query->where(function($q) {
-                        $q->where('status', 'sent_to_pembayaran')
-                          ->orWhere('status', 'sedang_diproses');
+                        $q->whereNull('status_pembayaran')
+                          ->orWhere('status', 'sent_to_pembayaran')
+                          ->orWhere('status', 'sedang diproses');
                     });
                     break;
                 case 'siap_dibayar':
-                    $query->where('status', 'siap_dibayar');
+                    // Dokumen yang siap dibayar = status_pembayaran = siap_dibayar
+                    $query->where('status_pembayaran', 'siap_dibayar');
                     break;
                 case 'sudah_dibayar':
-                    $query->where('status', 'sudah_dibayar');
+                    // Dokumen yang sudah dibayar = status_pembayaran = sudah_dibayar
+                    $query->where('status_pembayaran', 'sudah_dibayar');
                     break;
             }
         }
 
-        // Get documents with ordering
-        $dokumens = $query->orderByRaw("CASE
-            WHEN status = 'sent_to_pembayaran' THEN 1
-            WHEN current_handler = 'pembayaran' AND status = 'sedang_diproses' THEN 2
-            ELSE 3
-        END")
-        ->orderBy('updated_at', 'desc')
-        ->orderBy('created_at', 'desc')
-        ->get();
+        // Get documents with ordering and eager load relationships
+        $dokumens = $query->with(['dibayarKepadas', 'dokumenPos', 'dokumenPrs'])
+            ->orderByRaw("CASE
+                WHEN status = 'sent_to_pembayaran' THEN 1
+                WHEN current_handler = 'pembayaran' AND status = 'sedang_diproses' THEN 2
+                ELSE 3
+            END")
+            ->orderBy('updated_at', 'desc')
+            ->orderBy('created_at', 'desc')
+            ->get();
 
         $data = array(
             "title" => "Daftar Pembayaran",
@@ -118,6 +130,115 @@ class DashboardPembayaranController extends Controller
     public function updateDokumen(Request $request, $id){
         // Implementation for updating document
         return redirect()->route('dokumensPembayaran.index')->with('success', 'Pembayaran berhasil diperbarui');
+    }
+
+    /**
+     * Update status pembayaran
+     */
+    public function updateStatus(Request $request, Dokumen $dokumen)
+    {
+        // Only allow if current_handler is pembayaran
+        if ($dokumen->current_handler !== 'pembayaran') {
+            return response()->json(['success' => false, 'message' => 'Access denied'], 403);
+        }
+
+        try {
+            $validated = $request->validate([
+                'status_pembayaran' => 'required|in:siap_dibayar,sudah_dibayar',
+            ], [
+                'status_pembayaran.required' => 'Status pembayaran wajib dipilih.',
+                'status_pembayaran.in' => 'Status pembayaran tidak valid.',
+            ]);
+
+            DB::transaction(function () use ($dokumen, $validated) {
+                $updateData = [
+                    'status_pembayaran' => $validated['status_pembayaran'],
+                ];
+
+                // If status is sudah_dibayar, also update general status
+                if ($validated['status_pembayaran'] === 'sudah_dibayar') {
+                    $updateData['status'] = 'completed';
+                }
+
+                $dokumen->update($updateData);
+            });
+
+            Log::info('Status pembayaran successfully updated', [
+                'document_id' => $dokumen->id,
+                'status_pembayaran' => $validated['status_pembayaran']
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Status pembayaran berhasil diperbarui.',
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            Log::error('Validation error updating payment status: ' . json_encode($e->errors()));
+            return response()->json([
+                'success' => false,
+                'message' => 'Validasi gagal: ' . implode(', ', $e->validator->errors()->all())
+            ], 422);
+        } catch (\Exception $e) {
+            Log::error('Error updating payment status: ' . $e->getMessage(), [
+                'document_id' => $dokumen->id,
+                'trace' => $e->getTraceAsString()
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Terjadi kesalahan saat memperbarui status pembayaran: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Upload link bukti pembayaran
+     */
+    public function uploadBukti(Request $request, Dokumen $dokumen)
+    {
+        // Only allow if current_handler is pembayaran
+        if ($dokumen->current_handler !== 'pembayaran') {
+            return response()->json(['success' => false, 'message' => 'Access denied'], 403);
+        }
+
+        try {
+            $validated = $request->validate([
+                'link_bukti_pembayaran' => 'required|url|max:1000',
+            ], [
+                'link_bukti_pembayaran.required' => 'Link bukti pembayaran wajib diisi.',
+                'link_bukti_pembayaran.url' => 'Format link tidak valid.',
+                'link_bukti_pembayaran.max' => 'Link maksimal 1000 karakter.',
+            ]);
+
+            DB::transaction(function () use ($dokumen, $validated) {
+                $dokumen->update([
+                    'link_bukti_pembayaran' => $validated['link_bukti_pembayaran'],
+                ]);
+            });
+
+            Log::info('Link bukti pembayaran successfully uploaded', [
+                'document_id' => $dokumen->id,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Link bukti pembayaran berhasil disimpan.',
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            Log::error('Validation error uploading payment proof: ' . json_encode($e->errors()));
+            return response()->json([
+                'success' => false,
+                'message' => 'Validasi gagal: ' . implode(', ', $e->validator->errors()->all())
+            ], 422);
+        } catch (\Exception $e) {
+            Log::error('Error uploading payment proof: ' . $e->getMessage(), [
+                'document_id' => $dokumen->id,
+                'trace' => $e->getTraceAsString()
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Terjadi kesalahan saat menyimpan link bukti pembayaran: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     public function destroyDokumen($id){
@@ -336,6 +457,284 @@ class DashboardPembayaranController extends Controller
         return view('pembayaran.dokumens.rekapanDokumen', $data);
     }
 
+    /**
+     * Export rekapan pembayaran to Excel or PDF
+     */
+    public function exportRekapan(Request $request)
+    {
+        $exportType = $request->get('export', 'excel'); // excel or pdf
+        $mode = $request->get('mode', 'normal'); // normal or rekapan_table
+        $statusPembayaran = $request->get('status_pembayaran');
+        $year = $request->get('year');
+        $month = $request->get('month');
+        $search = $request->get('search');
+        $selectedColumns = $request->get('columns', []);
+
+        // Handler yang dianggap "belum siap dibayar"
+        $belumSiapHandlers = ['akuntansi', 'perpajakan', 'ibu_a', 'ibu_b'];
+
+        // Base query - semua dokumen yang sudah melewati proses awal
+        $query = Dokumen::whereNotNull('nomor_agenda');
+
+        // Apply status filter
+        if ($statusPembayaran) {
+            if ($statusPembayaran === 'belum_siap_dibayar') {
+                $query->whereIn('current_handler', $belumSiapHandlers);
+            } elseif ($statusPembayaran === 'siap_dibayar') {
+                $query->where(function($q) {
+                    $q->where('current_handler', 'pembayaran')
+                      ->orWhere('status', 'sent_to_pembayaran');
+                })->where(function($q) {
+                    $q->whereNull('status_pembayaran')
+                      ->orWhere('status_pembayaran', '!=', 'sudah_dibayar');
+                });
+            } elseif ($statusPembayaran === 'sudah_dibayar') {
+                $query->where('status_pembayaran', 'sudah_dibayar');
+            }
+        }
+
+        if ($year) {
+            $query->whereYear('created_at', $year);
+        }
+
+        if ($month) {
+            $query->whereMonth('created_at', $month);
+        }
+
+        if ($search) {
+            $query->where(function($q) use ($search) {
+                $q->where('nomor_agenda', 'like', "%{$search}%")
+                  ->orWhere('nomor_spp', 'like', "%{$search}%")
+                  ->orWhere('uraian_spp', 'like', "%{$search}%")
+                  ->orWhere('dibayar_kepada', 'like', "%{$search}%");
+            });
+        }
+
+        // Helper function to calculate computed status
+        $getComputedStatus = function($doc) use ($belumSiapHandlers) {
+            if ($doc->status_pembayaran === 'sudah_dibayar') {
+                return 'sudah_dibayar';
+            }
+            if (in_array($doc->current_handler, $belumSiapHandlers)) {
+                return 'belum_siap_dibayar';
+            }
+            if ($doc->current_handler === 'pembayaran' || $doc->status === 'sent_to_pembayaran') {
+                return 'siap_dibayar';
+            }
+            return 'belum_siap_dibayar';
+        };
+
+        // Get all documents (no pagination for export)
+        $dokumens = $query->with(['dibayarKepadas', 'dokumenPos', 'dokumenPrs'])
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        // Add computed status to each document
+        $dokumens->each(function($doc) use ($getComputedStatus) {
+            $doc->computed_status = $getComputedStatus($doc);
+        });
+
+        // Available columns mapping
+        $availableColumns = [
+            'nomor_agenda' => 'Nomor Agenda',
+            'dibayar_kepada' => 'Nama Vendor/Dibayar Kepada',
+            'jenis_pembayaran' => 'Jenis Pembayaran',
+            'jenis_sub_pekerjaan' => 'Jenis Subbagian',
+            'nomor_mirror' => 'Nomor Mirror',
+            'nomor_spp' => 'No SPP',
+            'tanggal_spp' => 'Tanggal SPP',
+            'tanggal_berita_acara' => 'Tanggal BA',
+            'no_berita_acara' => 'Nomor BA',
+            'tanggal_berakhir_ba' => 'Tanggal Akhir BA',
+            'no_spk' => 'Nomor SPK',
+            'tanggal_spk' => 'Tanggal SPK',
+            'tanggal_berakhir_spk' => 'Tanggal Berakhir SPK',
+            'umur_dokumen_tanggal_masuk' => 'Umur Dokumen (Berdasarkan Tanggal Masuk)',
+            'umur_dokumen_tanggal_spp' => 'Umur Dokumen (Berdasarkan Tanggal SPP)',
+            'umur_dokumen_tanggal_ba' => 'Umur Dokumen (Berdasarkan Tanggal BA)',
+            'nilai_rupiah' => 'Nilai Rupiah',
+            'nilai_belum_siap_bayar' => 'Nilai Rupiah Belum Siap Bayar',
+            'nilai_siap_bayar' => 'Nilai Rupiah Sudah Siap Bayar',
+            'nilai_sudah_dibayar' => 'Nilai Rupiah Sudah Dibayar',
+        ];
+
+        // Default columns for normal mode
+        $defaultColumns = ['nomor_agenda', 'nomor_spp', 'sent_to_pembayaran_at', 'dibayar_kepada', 'nilai_rupiah', 'computed_status', 'tanggal_dibayar'];
+        
+        // For rekapan_table mode, use selected columns or default
+        if ($mode === 'rekapan_table' && !empty($selectedColumns)) {
+            $columnsToExport = $selectedColumns;
+        } else {
+            $columnsToExport = $defaultColumns;
+        }
+
+        if ($exportType === 'excel') {
+            return $this->exportToExcel($dokumens, $columnsToExport, $availableColumns, $mode, $statusPembayaran, $year, $month, $search);
+        } else {
+            return $this->exportToPDF($dokumens, $columnsToExport, $availableColumns, $mode, $statusPembayaran, $year, $month, $search);
+        }
+    }
+
+    /**
+     * Export to Excel (using CSV format that Excel can open)
+     */
+    private function exportToExcel($dokumens, $columns, $availableColumns, $mode, $statusFilter, $year, $month, $search)
+    {
+        $filename = 'Rekapan_Pembayaran_' . date('Y-m-d_His') . '.csv';
+        
+        // Header row
+        $headers = [];
+        foreach ($columns as $col) {
+            if ($col === 'sent_to_pembayaran_at') {
+                $headers[] = 'Tgl Diterima';
+            } elseif ($col === 'computed_status') {
+                $headers[] = 'Status';
+            } elseif ($col === 'tanggal_dibayar') {
+                $headers[] = 'Tgl Dibayar';
+            } else {
+                $headers[] = $availableColumns[$col] ?? ucfirst(str_replace('_', ' ', $col));
+            }
+        }
+        
+        // Build CSV content
+        $csvContent = '';
+        // Add BOM for UTF-8 (so Excel opens it correctly)
+        $csvContent .= chr(0xEF).chr(0xBB).chr(0xBF);
+        
+        // Add header row
+        $csvContent .= $this->arrayToCsv($headers) . "\n";
+        
+        // Add data rows
+        foreach ($dokumens as $dokumen) {
+            $row = [];
+            foreach ($columns as $col) {
+                $value = $this->getColumnValue($dokumen, $col);
+                $row[] = $value;
+            }
+            $csvContent .= $this->arrayToCsv($row) . "\n";
+        }
+        
+        return Response::make($csvContent, 200, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+            'Cache-Control' => 'max-age=0',
+        ]);
+    }
+    
+    /**
+     * Convert array to CSV row
+     */
+    private function arrayToCsv($array, $delimiter = ';')
+    {
+        $output = fopen('php://temp', 'r+');
+        fputcsv($output, $array, $delimiter);
+        rewind($output);
+        $data = fread($output, 1048576);
+        fclose($output);
+        return rtrim($data, "\n\r");
+    }
+
+    /**
+     * Export to PDF
+     */
+    private function exportToPDF($dokumens, $columns, $availableColumns, $mode, $statusFilter, $year, $month, $search)
+    {
+        // Prepare data for PDF view
+        $pdfData = [
+            'dokumens' => $dokumens,
+            'columns' => $columns,
+            'availableColumns' => $availableColumns,
+            'statusFilter' => $statusFilter,
+            'year' => $year,
+            'month' => $month,
+            'search' => $search,
+        ];
+
+        // Return view that can be printed as PDF using browser print
+        return view('pembayaran.dokumens.export-pdf', $pdfData);
+    }
+
+    /**
+     * Get column value for export
+     */
+    private function getColumnValue($dokumen, $column)
+    {
+        switch ($column) {
+            case 'nomor_agenda':
+                return $dokumen->nomor_agenda ?? '-';
+            case 'nomor_spp':
+                return $dokumen->nomor_spp ?? '-';
+            case 'sent_to_pembayaran_at':
+                return $dokumen->sent_to_pembayaran_at ? $dokumen->sent_to_pembayaran_at->format('d/m/Y') : '-';
+            case 'dibayar_kepada':
+                if ($dokumen->dibayarKepadas && $dokumen->dibayarKepadas->count() > 0) {
+                    return $dokumen->dibayarKepadas->pluck('nama_penerima')->join(', ');
+                }
+                return $dokumen->dibayar_kepada ?? '-';
+            case 'nilai_rupiah':
+                return 'Rp ' . number_format($dokumen->nilai_rupiah ?? 0, 0, ',', '.');
+            case 'computed_status':
+                $status = $dokumen->computed_status ?? 'belum_siap_dibayar';
+                if ($status === 'sudah_dibayar') return 'Sudah Dibayar';
+                if ($status === 'siap_dibayar') return 'Siap Dibayar';
+                return 'Belum Siap Dibayar';
+            case 'tanggal_dibayar':
+                return $dokumen->tanggal_dibayar ? $dokumen->tanggal_dibayar->format('d/m/Y') : '-';
+            case 'jenis_pembayaran':
+                return $dokumen->jenis_pembayaran ?? '-';
+            case 'jenis_sub_pekerjaan':
+                return $dokumen->jenis_sub_pekerjaan ?? '-';
+            case 'nomor_mirror':
+                return $dokumen->nomor_mirror ?? '-';
+            case 'tanggal_spp':
+                return $dokumen->tanggal_spp ? $dokumen->tanggal_spp->format('d/m/Y') : '-';
+            case 'tanggal_berita_acara':
+                return $dokumen->tanggal_berita_acara ? $dokumen->tanggal_berita_acara->format('d/m/Y') : '-';
+            case 'no_berita_acara':
+                return $dokumen->no_berita_acara ?? '-';
+            case 'tanggal_berakhir_ba':
+                return $dokumen->tanggal_berakhir_ba ? $dokumen->tanggal_berakhir_ba->format('d/m/Y') : '-';
+            case 'no_spk':
+                return $dokumen->no_spk ?? '-';
+            case 'tanggal_spk':
+                return $dokumen->tanggal_spk ? $dokumen->tanggal_spk->format('d/m/Y') : '-';
+            case 'tanggal_berakhir_spk':
+                return $dokumen->tanggal_berakhir_spk ? $dokumen->tanggal_berakhir_spk->format('d/m/Y') : '-';
+            case 'umur_dokumen_tanggal_masuk':
+                if ($dokumen->tanggal_masuk) {
+                    $days = now()->diffInDays($dokumen->tanggal_masuk);
+                    return $days . ' hari';
+                }
+                return '-';
+            case 'umur_dokumen_tanggal_spp':
+                if ($dokumen->tanggal_spp) {
+                    $days = now()->diffInDays($dokumen->tanggal_spp);
+                    return $days . ' hari';
+                }
+                return '-';
+            case 'umur_dokumen_tanggal_ba':
+                if ($dokumen->tanggal_berita_acara) {
+                    $days = now()->diffInDays($dokumen->tanggal_berita_acara);
+                    return $days . ' hari';
+                }
+                return '-';
+            case 'nilai_belum_siap_bayar':
+                return $dokumen->computed_status === 'belum_siap_dibayar' 
+                    ? 'Rp ' . number_format($dokumen->nilai_rupiah ?? 0, 0, ',', '.')
+                    : '-';
+            case 'nilai_siap_bayar':
+                return $dokumen->computed_status === 'siap_dibayar' 
+                    ? 'Rp ' . number_format($dokumen->nilai_rupiah ?? 0, 0, ',', '.')
+                    : '-';
+            case 'nilai_sudah_dibayar':
+                return $dokumen->computed_status === 'sudah_dibayar' 
+                    ? 'Rp ' . number_format($dokumen->nilai_rupiah ?? 0, 0, ',', '.')
+                    : '-';
+            default:
+                return $dokumen->$column ?? '-';
+        }
+    }
+
     public function diagram(){
         // Get current year or from request
         $selectedYear = request('year', date('Y'));
@@ -443,6 +842,276 @@ class DashboardPembayaranController extends Controller
     }
 
     /**
+     * Get document detail for Pembayaran view
+     */
+    public function getDocumentDetail(Dokumen $dokumen)
+    {
+        // Allow access if document is handled by pembayaran or sent to pembayaran
+        $allowedHandlers = ['pembayaran', 'akutansi', 'perpajakan', 'ibuB'];
+        $allowedStatuses = ['sent_to_pembayaran', 'sedang diproses', 'selesai', 'sudah_dibayar'];
+
+        if (!in_array($dokumen->current_handler, $allowedHandlers) && !in_array($dokumen->status, $allowedStatuses)) {
+            return response('<div class="text-center p-4 text-danger">Access denied</div>', 403);
+        }
+
+        // Load required relationships
+        $dokumen->load(['dokumenPos', 'dokumenPrs', 'dibayarKepadas']);
+
+        // Return HTML partial for detail view
+        $html = $this->generateDocumentDetailHtml($dokumen);
+
+        return response($html);
+    }
+
+    /**
+     * Generate HTML for document detail with all data (initial, perpajakan, akutansi)
+     */
+    private function generateDocumentDetailHtml($dokumen)
+    {
+        $html = '<div class="detail-grid">';
+
+        // Document Information Section (Basic Data - Data Awal)
+        $detailItems = [
+            'Tanggal Masuk' => $dokumen->tanggal_masuk ? $dokumen->tanggal_masuk->format('d/m/Y H:i:s') : '-',
+            'Bulan' => $dokumen->bulan,
+            'Tahun' => $dokumen->tahun,
+            'No SPP' => $dokumen->nomor_spp,
+            'Tanggal SPP' => $dokumen->tanggal_spp ? $dokumen->tanggal_spp->format('d/m/Y') : '-',
+            'Uraian SPP' => $dokumen->uraian_spp ?? '-',
+            'Nilai Rp' => $dokumen->formatted_nilai_rupiah ?? 'Rp ' . number_format($dokumen->nilai_rupiah ?? 0, 0, ',', '.'),
+            'Kategori' => $dokumen->kategori ?? '-',
+            'Jenis Dokumen' => $dokumen->jenis_dokumen ?? '-',
+            'SubBagian Pekerjaan' => $dokumen->jenis_sub_pekerjaan ?? '-',
+            'Jenis Pembayaran' => $dokumen->jenis_pembayaran ?? '-',
+            'Dibayar Kepada' => $dokumen->dibayarKepadas->count() > 0
+                ? htmlspecialchars($dokumen->dibayarKepadas->pluck('nama_penerima')->join(', '))
+                : ($dokumen->dibayar_kepada ?? '-'),
+            'No Berita Acara' => $dokumen->no_berita_acara ?? '-',
+            'Tanggal Berita Acara' => $dokumen->tanggal_berita_acara ? $dokumen->tanggal_berita_acara->format('d/m/Y') : '-',
+            'No SPK' => $dokumen->no_spk ?? '-',
+            'Tanggal SPK' => $dokumen->tanggal_spk ? $dokumen->tanggal_spk->format('d/m/Y') : '-',
+            'Tanggal Akhir SPK' => $dokumen->tanggal_berakhir_spk ? $dokumen->tanggal_berakhir_spk->format('d/m/Y') : '-',
+            'No PO' => $dokumen->dokumenPos->count() > 0 ? htmlspecialchars($dokumen->dokumenPos->pluck('nomor_po')->join(', ')) : '-',
+            'No PR' => $dokumen->dokumenPrs->count() > 0 ? htmlspecialchars($dokumen->dokumenPrs->pluck('nomor_pr')->join(', ')) : '-',
+            'No Mirror' => $dokumen->nomor_mirror ?? '-',
+        ];
+
+        foreach ($detailItems as $label => $value) {
+            $html .= sprintf('
+                <div class="detail-item">
+                    <span class="detail-label">%s</span>
+                    <span class="detail-value">%s</span>
+                </div>',
+                htmlspecialchars($label),
+                $value
+            );
+        }
+
+        $html .= '</div>';
+
+        // Check if document has perpajakan data
+        $hasPerpajakanData = !empty($dokumen->npwp) || !empty($dokumen->no_faktur) || 
+                             !empty($dokumen->tanggal_faktur) || !empty($dokumen->jenis_pph) ||
+                             !empty($dokumen->dpp_pph) || !empty($dokumen->ppn_terhutang) ||
+                             !empty($dokumen->link_dokumen_pajak) || !empty($dokumen->status_perpajakan);
+
+        if ($hasPerpajakanData || $dokumen->status == 'sent_to_akutansi' || $dokumen->status == 'sent_to_pembayaran') {
+            // Visual Separator for Perpajakan Data
+            $html .= '<div class="detail-section-separator">
+                <div class="separator-content">
+                    <i class="fa-solid fa-file-invoice-dollar"></i>
+                    <span>Data Perpajakan</span>
+                    <span class="tax-badge">DITAMBAHKAN OLEH TEAM PERPAJAKAN</span>
+                </div>
+            </div>';
+
+            // Perpajakan Information Section
+            $html .= '<div class="detail-grid tax-section">';
+
+            $taxFields = [
+                'NPWP' => $dokumen->npwp ?: '<span class="empty-field">Belum diisi</span>',
+                'Status Perpajakan' => $this->formatTaxStatus($dokumen->status_perpajakan),
+                'No Faktur' => $dokumen->no_faktur ?: '<span class="empty-field">Belum diisi</span>',
+                'Tanggal Faktur' => $dokumen->tanggal_faktur ? $dokumen->tanggal_faktur->format('d/m/Y') : '<span class="empty-field">Belum diisi</span>',
+                'Tanggal Selesai Verifikasi Pajak' => $dokumen->tanggal_selesai_verifikasi_pajak ? $dokumen->tanggal_selesai_verifikasi_pajak->format('d/m/Y') : '<span class="empty-field">Belum diisi</span>',
+                'Jenis PPh' => $dokumen->jenis_pph ?: '<span class="empty-field">Belum diisi</span>',
+                'DPP PPh' => $dokumen->dpp_pph ? 'Rp ' . number_format($dokumen->dpp_pph, 0, ',', '.') : '<span class="empty-field">Belum diisi</span>',
+                'PPN Terhutang' => $dokumen->ppn_terhutang ? 'Rp ' . number_format($dokumen->ppn_terhutang, 0, ',', '.') : '<span class="empty-field">Belum diisi</span>',
+                'Link Dokumen Pajak' => $this->formatTaxDocumentLink($dokumen->link_dokumen_pajak),
+            ];
+
+            foreach ($taxFields as $label => $value) {
+                $html .= sprintf('
+                    <div class="detail-item tax-field">
+                        <span class="detail-label">%s</span>
+                        <span class="detail-value">%s</span>
+                    </div>',
+                    htmlspecialchars($label),
+                    $value
+                );
+            }
+
+            $html .= '</div>';
+        }
+
+        // Data Akutansi Section - Always show for documents sent to pembayaran
+        $html .= '<div class="detail-section-separator">
+            <div class="separator-content">
+                <i class="fa-solid fa-calculator"></i>
+                <span>Data Akutansi</span>
+                <span class="tax-badge" style="background: linear-gradient(135deg, #889717 0%, #9ab01f 100%);">DITAMBAHKAN OLEH TEAM AKUTANSI</span>
+            </div>
+        </div>';
+
+        // Akutansi Information Section
+        $html .= '<div class="detail-grid tax-section">';
+
+        $akutansiFields = [
+            'Nomor MIRO' => $dokumen->nomor_miro ?: '<span class="empty-field">Belum diisi</span>',
+        ];
+
+        foreach ($akutansiFields as $label => $value) {
+            $html .= sprintf('
+                <div class="detail-item tax-field">
+                    <span class="detail-label">%s</span>
+                    <span class="detail-value">%s</span>
+                </div>',
+                htmlspecialchars($label),
+                $value
+            );
+        }
+
+        $html .= '</div>';
+
+        return $html;
+    }
+
+    /**
+     * Format tax status with badge
+     */
+    private function formatTaxStatus($status)
+    {
+        if (!$status) {
+            return '<span class="empty-field">Belum diisi</span>';
+        }
+
+        $statusLabel = $status == 'selesai' ? 'Selesai' : 'Sedang Diproses';
+        $badgeClass = $status == 'selesai' ? 'badge-selesai' : 'badge-proses';
+
+        return sprintf('<span class="badge %s">%s</span>', $badgeClass, $statusLabel);
+    }
+
+    /**
+     * Format tax document link
+     */
+    private function formatTaxDocumentLink($link)
+    {
+        if (!$link) {
+            return '<span class="empty-field">Belum diisi</span>';
+        }
+
+        if (filter_var($link, FILTER_VALIDATE_URL)) {
+            return sprintf('<a href="%s" target="_blank" class="tax-link">%s <i class="fa-solid fa-external-link-alt"></i></a>',
+                htmlspecialchars($link),
+                htmlspecialchars($link)
+            );
+        }
+
+        return htmlspecialchars($link);
+    }
+
+    /**
+     * Set deadline for pembayaran
+     */
+    public function setDeadline(Request $request, Dokumen $dokumen)
+    {
+        // Only allow if current_handler is pembayaran
+        if ($dokumen->current_handler !== 'pembayaran') {
+            return response()->json(['success' => false, 'message' => 'Access denied'], 403);
+        }
+
+        try {
+            // Enhanced logging with user context
+            Log::info('=== SET DEADLINE PEMBAYARAN REQUEST START ===', [
+                'document_id' => $dokumen->id,
+                'current_handler' => $dokumen->current_handler,
+                'current_status' => $dokumen->status,
+                'deadline_exists' => $dokumen->deadline_at ? true : false,
+                'user_id' => Auth::id(),
+                'user_role' => Auth::user()?->role,
+                'request_data' => $request->all()
+            ]);
+
+            // Use helper for validation
+            $validation = DokumenHelper::canSetDeadline($dokumen);
+            if (!$validation['can_set']) {
+                Log::warning('Deadline set failed - Validation error', [
+                    'document_id' => $dokumen->id,
+                    'user_role' => Auth::user()?->role,
+                    'validation_result' => $validation
+                ]);
+
+                return response()->json([
+                    'success' => false,
+                    'message' => $validation['message'],
+                    'debug_info' => $validation['debug']
+                ], 403);
+            }
+
+            $validated = $request->validate([
+                'deadline_days' => 'required|integer|min:1|max:30',
+                'deadline_note' => 'nullable|string|max:500',
+            ], [
+                'deadline_days.required' => 'Periode deadline wajib dipilih.',
+                'deadline_days.integer' => 'Periode deadline harus berupa angka.',
+                'deadline_days.min' => 'Deadline minimal 1 hari.',
+                'deadline_days.max' => 'Deadline maksimal 30 hari.',
+                'deadline_note.max' => 'Catatan maksimal 500 karakter.',
+            ]);
+
+            $deadlineDays = (int) $validated['deadline_days'];
+            $deadlineNote = isset($validated['deadline_note']) && trim($validated['deadline_note']) !== '' 
+                ? trim($validated['deadline_note']) 
+                : null;
+
+            // Update using transaction
+            DB::transaction(function () use ($dokumen, $deadlineDays, $deadlineNote) {
+                $dokumen->update([
+                    'deadline_at' => now()->addDays($deadlineDays),
+                    'deadline_days' => $deadlineDays,
+                    'deadline_note' => $deadlineNote,
+                    'status' => 'sedang diproses',
+                    'processed_at' => now(),
+                ]);
+            });
+
+            Log::info('Deadline successfully set for Pembayaran', [
+                'document_id' => $dokumen->id,
+                'deadline_days' => $deadlineDays,
+                'deadline_at' => $dokumen->fresh()->deadline_at
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => "Deadline berhasil ditetapkan ({$deadlineDays} hari). Dokumen sekarang terbuka untuk diproses.",
+                'deadline' => $dokumen->fresh()->deadline_at->format('d M Y, H:i'),
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            Log::error('Validation error setting Pembayaran deadline: ' . json_encode($e->errors()));
+            return response()->json([
+                'success' => false,
+                'message' => 'Validasi gagal: ' . implode(', ', $e->validator->errors()->all())
+            ], 422);
+        } catch (\Exception $e) {
+            Log::error('Error setting deadline in Pembayaran: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Terjadi kesalahan saat menetapkan deadline'
+            ], 500);
+        }
+    }
+
+    /**
      * Check for new documents sent to pembayaran
      */
     public function checkUpdates(Request $request)
@@ -483,7 +1152,7 @@ class DashboardPembayaranController extends Controller
                         'nilai_rupiah' => $doc->nilai_rupiah,
                         'status' => $doc->status,
                         'sent_at' => $doc->updated_at ? $doc->updated_at->format('d/m/Y H:i') : '-',
-                        'sent_from' => 'Akutansi',
+                        'sent_from' => 'Team Akutansi',
                     ];
                 }),
                 'last_checked' => time()

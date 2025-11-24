@@ -25,7 +25,7 @@ body {
 
 /* Header Styles */
 .dashboard-header {
-  background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+  background: linear-gradient(135deg, #00695c 0%, #004d40 100%);
   color: white;
   padding: 1.5rem 0;
   margin-bottom: 2rem;
@@ -52,21 +52,23 @@ body {
   min-width: 0;
 }
 
-.info-panel {
-  width: 380px;
-  min-width: 380px;
-  position: sticky;
-  top: 0;
+/* Search Section Styles */
+.search-section {
+  background: white;
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+}
+
+.search-form .form-control:focus {
+  border-color: #00695c;
+  box-shadow: 0 0 0 0.2rem rgba(0, 105, 92, 0.25);
 }
 
 @media (max-width: 1200px) {
   .dashboard-container {
     flex-direction: column;
-  }
-
-  .info-panel {
-    width: 100%;
-    position: static;
   }
 }
 
@@ -107,34 +109,6 @@ body {
   margin-bottom: 0.5rem;
 }
 
-.document-actions {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.expand-icon {
-  width: 32px;
-  height: 32px;
-  background: var(--light-bg);
-  border: 1px solid var(--border-color);
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.expand-icon:hover {
-  background: var(--primary-color);
-  color: white;
-  transform: scale(1.1);
-}
-
-.expand-icon.expanded {
-  transform: rotate(180deg);
-}
 
 .document-body {
   margin-bottom: 1rem;
@@ -199,83 +173,6 @@ body {
   margin-top: 0.25rem;
 }
 
-/* Timeline */
-.document-timeline {
-  display: none;
-  margin-top: 1rem;
-  padding-top: 1rem;
-  border-top: 1px dashed var(--border-color);
-  max-height: 0;
-  overflow: hidden;
-  transition: all 0.3s ease;
-}
-
-.document-timeline.show {
-  display: block;
-  max-height: 2000px;
-  overflow-y: auto;
-}
-
-.timeline-event {
-  background: var(--light-bg);
-  border-left: 4px solid;
-  padding: 1rem;
-  margin-bottom: 1rem;
-  border-radius: 0 8px 8px 0;
-}
-
-.timeline-event.created {
-  border-left-color: var(--success-color);
-}
-
-.timeline-event.sent {
-  border-left-color: var(--primary-color);
-}
-
-.timeline-event.processed {
-  border-left-color: var(--warning-color);
-}
-
-.timeline-event.returned {
-  border-left-color: var(--danger-color);
-}
-
-.timeline-event.completed {
-  border-left-color: var(--success-color);
-}
-
-.timeline-icon {
-  font-size: 1.25rem;
-  margin-bottom: 0.5rem;
-  line-height: 1;
-}
-
-.timeline-title {
-  font-weight: 600;
-  color: var(--text-primary);
-  margin-bottom: 0.5rem;
-  font-size: 0.95rem;
-}
-
-.timeline-time {
-  font-size: 0.8rem;
-  color: var(--text-muted);
-  margin-bottom: 0.75rem;
-}
-
-.timeline-info {
-  font-size: 0.8rem;
-  color: var(--text-secondary);
-  line-height: 1.5;
-}
-
-.timeline-info-item {
-  margin-bottom: 0.25rem;
-}
-
-.timeline-info-item strong {
-  color: var(--text-primary);
-}
 
 /* Info Panel */
 .info-panel {
@@ -495,30 +392,69 @@ body {
 <div class="dashboard-header">
   <div class="container">
     <h1 class="header-title">
-      🎯 OWNER COMMAND CENTER
+      🎯 PUSAT KOMANDO OWNER
     </h1>
-    <p class="text-white-50 mb-0">Real-Time Document Monitoring & Analytics</p>
+    <p class="text-white-50 mb-0">Pemantauan & Analitik Dokumen Real-Time</p>
   </div>
 </div>
 
 <div class="container">
+  <!-- Search Section -->
+  <div class="search-section" style="background: white; border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 2px 4px rgba(0,0,0,0.08);">
+    <form method="GET" action="{{ url('/owner/dashboard') }}" class="search-form">
+      <div class="d-flex gap-2 align-items-end">
+        <div class="flex-grow-1">
+          <label class="form-label" style="font-size: 0.875rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.5rem;">
+            <i class="fas fa-search me-2"></i>Cari Dokumen
+          </label>
+          <input type="text" 
+                 name="search" 
+                 class="form-control" 
+                 value="{{ $search ?? '' }}" 
+                 placeholder="Cari berdasarkan nomor agenda, SPP, uraian, nilai, bagian, dll..."
+                 style="border-radius: 8px; border: 1px solid var(--border-color); padding: 0.75rem;">
+        </div>
+        <div>
+          <button type="submit" class="btn btn-primary" style="background: linear-gradient(135deg, #00695c 0%, #004d40 100%); border: none; border-radius: 8px; padding: 0.75rem 1.5rem; font-weight: 600;">
+            <i class="fas fa-search me-2"></i>Cari
+          </button>
+        </div>
+        @if(isset($search) && !empty($search))
+        <div>
+          <a href="{{ url('/owner/dashboard') }}" class="btn btn-secondary" style="border-radius: 8px; padding: 0.75rem 1.5rem; font-weight: 600;">
+            <i class="fas fa-times me-2"></i>Reset
+          </a>
+        </div>
+        @endif
+      </div>
+    </form>
+  </div>
+
   <div class="dashboard-container">
-    <!-- Document List (60%) -->
-    <div class="document-list">
+    <!-- Document List (100%) -->
+    <div class="document-list" style="flex: 1;">
       <div id="documentList">
         @if($documents->isEmpty())
           <div class="text-center py-5">
             <div class="mb-4">
               <i class="fas fa-inbox fa-3x text-muted"></i>
             </div>
-            <h4 class="text-muted">Belum ada dokumen</h4>
-            <p class="text-muted">Dokumen akan muncul di sini ketika dibuat</p>
+            @if(isset($search) && !empty($search))
+              <h4 class="text-muted">Tidak ada dokumen ditemukan</h4>
+              <p class="text-muted">Tidak ada dokumen yang sesuai dengan pencarian "{{ $search }}"</p>
+              <a href="{{ url('/owner/dashboard') }}" class="btn btn-primary mt-3" style="background: linear-gradient(135deg, #00695c 0%, #004d40 100%); border: none;">
+                <i class="fas fa-arrow-left me-2"></i>Kembali ke Semua Dokumen
+              </a>
+            @else
+              <h4 class="text-muted">Belum ada dokumen</h4>
+              <p class="text-muted">Dokumen akan muncul di sini ketika dibuat</p>
+            @endif
           </div>
         @else
           @foreach($documents as $index => $dokumen)
             <div class="document-card {{ $dokumen['is_overdue'] ? 'overdue' : '' }}"
                  data-document-id="{{ $dokumen['id'] }}"
-                 onclick="toggleTimeline({{ $dokumen['id'] }})">
+                 onclick="window.location.href='{{ url('/owner/workflow/' . $dokumen['id']) }}'">
               <div class="document-header">
                 <div>
                   <div class="document-number">
@@ -528,11 +464,6 @@ body {
                     {{ $dokumen['nomor_spp'] }}
                   </div>
                 </div>
-                <div class="document-actions">
-                  <div class="expand-icon" id="expand-{{ $dokumen['id'] }}">
-                    <i class="fas fa-chevron-down"></i>
-                  </div>
-                </div>
               </div>
 
               <div class="document-body">
@@ -540,7 +471,7 @@ body {
                   Rp. {{ number_format($dokumen['nilai_rupiah'], 0, ',', '.') }}
                 </div>
                 <div class="document-info">
-                  📍 <strong>Posisi:</strong> {{ $dokumen['current_handler'] ?? 'Tidak ada' }}
+                  📍 <strong>Posisi:</strong> {{ $dokumen['current_handler_display'] ?? ($dokumen['current_handler'] ?? 'Tidak ada') }}
                 </div>
                 @if($dokumen['deadline_info'])
                 <div class="document-info">
@@ -563,392 +494,14 @@ body {
                 </div>
               </div>
 
-              <div class="document-status">
-                <span style="background-color: {{ $dokumen['status_badge_color'] }};">
-                  {{ ucfirst(str_replace('_', ' ', $dokumen['status'])) }}
-                </span>
-                @if($dokumen['is_overdue'])
-                  <span class="ms-2" style="background-color: var(--danger-color);">
-                    Overdue
-                  </span>
-                @endif
-              </div>
-
-              <!-- Timeline (Hidden by default) -->
-              <div class="document-timeline" id="timeline-{{ $dokumen['id'] }}">
-                <div class="timeline-loading d-none">
-                  <div class="skeleton-card loading-skeleton"></div>
-                </div>
-              </div>
             </div>
           @endforeach
         @endif
       </div>
     </div>
 
-    <!-- Info Panel (40%) -->
-    <div class="info-panel">
-      <!-- Statistics -->
-      <div class="info-title">
-        📊 STATISTIK
-      </div>
-      <div class="stats-grid">
-        <div class="stat-card">
-          <div class="stat-value">{{ $stats['total_documents'] }}</div>
-          <div class="stat-label">Total Dokumen</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-value">{{ $stats['active_processing'] }}</div>
-          <div class="stat-label">Sedang Diproses</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-value">{{ $stats['completed_today'] }}</div>
-          <div class="stat-label">Selesai Hari Ini</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-value text-danger">{{ $stats['overdue_documents'] }}</div>
-          <div class="stat-label">Overdue</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-value">{{ $stats['avg_processing_time'] }}</div>
-          <div class="stat-label">Rata-rata Proses</div>
-        </div>
-      </div>
-
-      <!-- Department Performance -->
-      <div class="activity-section">
-        <div class="activity-title">
-          ⚡ PERFORMA DEPARTEMEN
-        </div>
-        <div class="stats-grid">
-          <div class="stat-card">
-            <div class="stat-value text-success">{{ $stats['fastest_department'] }}</div>
-            <div class="stat-label">Tercepat</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-value text-danger">{{ $stats['slowest_department'] }}</div>
-            <div class="stat-label">Terlama</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Activity Today -->
-      <div class="activity-section">
-        <div class="activity-title">
-          📈 AKTIVITAS HARI INI
-        </div>
-        <div class="activity-list">
-          <div class="activity-item success">
-            <strong>5 dokumen</strong> berhasil diselesaikan
-            <br><small>{{ now()->format('H:i') }} WIB</small>
-          </div>
-          <div class="activity-item warning">
-            <strong>2 dokumen</strong> mendekati deadline
-            <br><small>2 jam lalu</small>
-          </div>
-          <div class="activity-item danger">
-            <strong>1 dokumen</strong> terlambat dari deadline
-            <br><small>{{ now()->format('H:i') }} WIB</small>
-          </div>
-        </div>
-      </div>
-    </div>
   </div>
 </div>
 
-<!-- Timeline Modal -->
-<div class="modal fade" id="timelineModal" tabindex="-1">
-  <div class="modal-dialog modal-lg">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">📋 Track Record Dokumen</h5>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body" id="timelineContent">
-        <div class="text-center py-4">
-          <div class="spinner-border text-primary" role="status">
-            <span class="visually-hidden">Loading...</span>
-          </div>
-          <p class="mt-3">Memuat track record dokumen...</p>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<script>
-// Global variables
-let expandedCards = new Set();
-
-// Toggle timeline for document
-function toggleTimeline(documentId) {
-  const timelineElement = document.getElementById(`timeline-${documentId}`);
-  const expandIcon = document.getElementById(`expand-${documentId}`);
-
-  if (expandedCards.has(documentId)) {
-    // Collapse
-    timelineElement.classList.remove('show');
-    expandIcon.classList.remove('expanded');
-    expandedCards.delete(documentId);
-  } else {
-    // Expand - fetch timeline data
-    expandIcon.classList.add('expanded');
-    loadDocumentTimeline(documentId);
-  }
-}
-
-// Load document timeline via AJAX
-function loadDocumentTimeline(documentId) {
-  const timelineElement = document.getElementById(`timeline-${documentId}`);
-
-  // Show loading skeleton
-  timelineElement.innerHTML = `
-    <div class="timeline-loading">
-      <div class="skeleton-card loading-skeleton"></div>
-    </div>
-  `;
-
-  // Fetch timeline data
-  fetch(`/owner/api/document-timeline/${documentId}`)
-    .then(response => response.json())
-    .then(data => {
-      if (data.success) {
-        renderTimeline(timelineElement, data.timeline);
-        expandedCards.add(documentId);
-
-        // Add show class after content is loaded
-        setTimeout(() => {
-          timelineElement.classList.add('show');
-        }, 50);
-      } else {
-        throw new Error('Failed to load timeline');
-      }
-    })
-    .catch(error => {
-      console.error('Error loading timeline:', error);
-      timelineElement.innerHTML = `
-        <div class="alert alert-danger m-3">
-          <i class="fas fa-exclamation-triangle me-2"></i>
-          Gagal memuat track record: ${error.message}
-        </div>
-      `;
-      expandIcon.classList.remove('expanded');
-    });
-}
-
-// Render timeline events
-function renderTimeline(container, timeline) {
-  if (!timeline || timeline.length === 0) {
-    container.innerHTML = `
-      <div class="alert alert-info m-3">
-        <i class="fas fa-info-circle me-2"></i>
-        Belum ada aktivitas untuk dokumen ini
-      </div>
-    `;
-    return;
-  }
-
-  let timelineHTML = '';
-
-  timeline.forEach((event, index) => {
-    const eventIcon = event.icon;
-    const eventTitle = event.title;
-    const eventTime = event.timestamp;
-    const duration = event.duration || '';
-    const info = event.info || {};
-
-    // Build info HTML
-    let infoHTML = '';
-    Object.entries(info).forEach(([key, value]) => {
-      infoHTML += `
-        <div class="timeline-info-item">
-          <strong>${key}:</strong> ${value}
-        </div>
-      `;
-    });
-
-    if (duration) {
-      infoHTML += `
-        <div class="timeline-info-item">
-          <strong>Durasi:</strong> ${duration}
-        </div>
-      `;
-    }
-
-    timelineHTML += `
-      <div class="timeline-event ${event.type}">
-        <div class="timeline-icon">${eventIcon}</div>
-        <div class="timeline-title">${eventTitle}</div>
-        <div class="timeline-time">📅 ${eventTime}</div>
-        ${infoHTML ? `<div class="timeline-info">${infoHTML}</div>` : ''}
-      </div>
-    `;
-  });
-
-  container.innerHTML = timelineHTML;
-}
-
-// Modal for detailed timeline view
-function showDetailedTimeline(documentId) {
-  const modal = new bootstrap.Modal(document.getElementById('timelineModal'));
-  const modalContent = document.getElementById('timelineContent');
-
-  modal.show();
-
-  // Load timeline data
-  loadDocumentTimelineInModal(documentId, modalContent);
-}
-
-// Load timeline in modal
-function loadDocumentTimelineInModal(documentId, container) {
-  container.innerHTML = `
-    <div class="text-center py-4">
-      <div class="spinner-border text-primary" role="status">
-        <span class="visually-hidden">Loading...</span>
-      </div>
-      <p class="mt-3">Memuat track record lengkap...</p>
-    </div>
-  `;
-
-  fetch(`/owner/api/document-timeline/${documentId}`)
-    .then(response => response.json())
-    .then(data => {
-      if (data.success) {
-        renderDetailedTimeline(container, data.dokumen, data.timeline);
-      } else {
-        throw new Error('Failed to load timeline');
-      }
-    })
-    .catch(error => {
-      console.error('Error loading timeline:', error);
-      container.innerHTML = `
-        <div class="alert alert-danger">
-          <i class="fas fa-exclamation-triangle me-2"></i>
-          Gagal memuat track record: ${error.message}
-        </div>
-      `;
-    });
-}
-
-// Render detailed timeline in modal
-function renderDetailedTimeline(container, dokumen, timeline) {
-  let html = `
-    <div class="document-header-modal">
-      <h6 class="mb-1">📄 ${dokumen.nomor_agenda}</h6>
-      <div class="document-info-modal">
-        <div class="row">
-          <div class="col-6">
-            <strong>Nomor SPP:</strong> ${dokumen.nomor_spp}<br>
-            <strong>Uraian:</strong> ${dokumen.uraian_spp}
-          </div>
-          <div class="col-6">
-            <strong>Nilai:</strong> Rp. ${dokumen.nilai_rupiah.toLocaleString('id-ID')}<br>
-            <strong>Dibuat:</strong> ${dokumen.created_at}
-          </div>
-        </div>
-      </div>
-    </div>
-    <div class="timeline-modal">
-  `;
-
-  timeline.forEach((event, index) => {
-    const eventIcon = event.icon;
-    const eventTitle = event.title;
-    const eventTime = event.timestamp;
-    const duration = event.duration || '';
-    const info = event.info || {};
-
-    // Build info HTML
-    let infoHTML = '';
-    Object.entries(info).forEach(([key, value]) => {
-      infoHTML += `
-        <div class="timeline-info-item">
-          <strong>${key}:</strong> ${value}
-        </div>
-      `;
-    });
-
-    if (duration) {
-      infoHTML += `
-        <div class="timeline-info-item">
-          <strong>Durasi:</strong> ${duration}
-        </div>
-      `;
-    }
-
-    if (event.total_duration) {
-      infoHTML += `
-        <div class="timeline-info-item text-success font-weight-bold">
-          <strong>Total Waktu Proses:</strong> ${event.total_duration}
-        </div>
-      `;
-    }
-
-    html += `
-      <div class="timeline-event ${event.type}">
-        <div class="timeline-icon">${eventIcon}</div>
-        <div class="timeline-title">${eventTitle}</div>
-        <div class="timeline-time">📅 ${eventTime}</div>
-        ${infoHTML ? `<div class="timeline-info">${infoHTML}</div>` : ''}
-      </div>
-    `;
-  });
-
-  html += `
-    </div>
-    <div class="modal-footer">
-      <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-        Tutup
-      </button>
-    </div>
-  `;
-
-  container.innerHTML = html;
-}
-
-// Auto-refresh functionality (optional)
-let refreshInterval;
-
-function startAutoRefresh() {
-  // Refresh every 30 seconds
-  refreshInterval = setInterval(() => {
-    location.reload();
-  }, 30000);
-}
-
-function stopAutoRefresh() {
-  if (refreshInterval) {
-    clearInterval(refreshInterval);
-    refreshInterval = null;
-  }
-}
-
-// Initialize on page load
-document.addEventListener('DOMContentLoaded', function() {
-  // Collapse all timelines by default
-  document.querySelectorAll('.document-timeline').forEach(timeline => {
-    timeline.style.maxHeight = '0';
-    timeline.style.overflow = 'hidden';
-  });
-
-  // Optional: Start auto-refresh
-  // startAutoRefresh();
-});
-
-// Keyboard shortcuts
-document.addEventListener('keydown', function(e) {
-  // Press 'R' to refresh
-  if (e.key === 'r' && !e.ctrlKey && !e.metaKey) {
-    location.reload();
-  }
-
-  // Press 'Esc' to close all expanded cards
-  if (e.key === 'Escape') {
-    expandedCards.forEach(documentId => {
-      toggleTimeline(documentId);
-    });
-  }
-});
-</script>
 
 @endsection

@@ -11,7 +11,9 @@ use App\Models\Dokumen;
 use App\Models\DokumenPO;
 use App\Models\DokumenPR;
 use App\Models\Bidang;
+use App\Models\DibayarKepada;
 use App\Events\DocumentReturned;
+use App\Helpers\SearchHelper;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -120,20 +122,47 @@ class DashboardBController extends Controller
                 'updated_at'
             ]);
 
-        // Search functionality - optimized with index-friendly queries
-        if ($request->has('search') && $request->search) {
-            $search = $request->search;
+        // Enhanced search functionality - search across all relevant fields
+        if ($request->has('search') && !empty($request->search) && trim((string)$request->search) !== '') {
+            $search = trim((string)$request->search);
             $query->where(function($q) use ($search) {
-                $q->where('nomor_agenda', 'like', $search . '%')
-                  ->orWhere('nomor_spp', 'like', $search . '%');
+                // Text fields
+                $q->where('nomor_agenda', 'like', '%' . $search . '%')
+                  ->orWhere('nomor_spp', 'like', '%' . $search . '%')
+                  ->orWhere('uraian_spp', 'like', '%' . $search . '%')
+                  ->orWhere('nama_pengirim', 'like', '%' . $search . '%')
+                  ->orWhere('bagian', 'like', '%' . $search . '%')
+                  ->orWhere('kategori', 'like', '%' . $search . '%')
+                  ->orWhere('jenis_dokumen', 'like', '%' . $search . '%')
+                  ->orWhere('no_berita_acara', 'like', '%' . $search . '%')
+                  ->orWhere('no_spk', 'like', '%' . $search . '%')
+                  ->orWhere('nomor_mirror', 'like', '%' . $search . '%')
+                  ->orWhere('nomor_miro', 'like', '%' . $search . '%')
+                  ->orWhere('keterangan', 'like', '%' . $search . '%')
+                  ->orWhere('dibayar_kepada', 'like', '%' . $search . '%');
+                
+                // Search in nilai_rupiah - handle various formats
+                $numericSearch = preg_replace('/[^0-9]/', '', $search);
+                if (is_numeric($numericSearch) && $numericSearch > 0) {
+                    $q->orWhereRaw('CAST(nilai_rupiah AS CHAR) LIKE ?', ['%' . $numericSearch . '%']);
+                }
+            })
+            ->orWhereHas('dibayarKepadas', function($q) use ($search) {
+                $q->where('nama_penerima', 'like', '%' . $search . '%');
             });
         }
 
+        // Filter by year
+        if ($request->has('year') && $request->year) {
+            $query->where('tahun', $request->year);
+        }
+
         // Use eager loading for relations to prevent N+1 queries
-        $dokumens = $query->withCount([
-            'dokumenPos',
-            'dokumenPrs'
-        ])->paginate(10);
+        $dokumens = $query->with(['dibayarKepadas'])
+            ->withCount([
+                'dokumenPos',
+                'dokumenPrs'
+            ])->paginate(10);
 
         // Cache statistics for better performance
         $cacheKey = 'ibub_stats_' . md5($request->fullUrl());
@@ -151,6 +180,13 @@ class DashboardBController extends Controller
         $totalDikembalikan = $statistics->total_dikembalikan ?? 0;
         $totalDikirim = $statistics->total_dikirim ?? 0;
 
+        // Get suggestions if no results found
+        $suggestions = [];
+        if ($request->has('search') && !empty($request->search) && trim((string)$request->search) !== '' && $dokumens->total() == 0) {
+            $searchTerm = trim((string)$request->search);
+            $suggestions = $this->getSearchSuggestions($searchTerm, $request->year, 'ibuB');
+        }
+
         $data = array(
             "title" => "Daftar Dokumen B",
             "module" => "ibuB",
@@ -161,6 +197,7 @@ class DashboardBController extends Controller
             'totalDibaca' => $totalDibaca,
             'totalDikembalikan' => $totalDikembalikan,
             'totalDikirim' => $totalDikirim,
+            'suggestions' => $suggestions,
         );
         return view('ibuB.dokumens.daftarDokumenB', $data);
     }
@@ -490,7 +527,7 @@ class DashboardBController extends Controller
 
         // Dates
         $dates = [
-            'Tanggal Dikirim ke IbuB' => $dokumen->sent_to_ibub_at ? $dokumen->sent_to_ibub_at->format('d-m-Y H:i') : null,
+            'Tanggal Dikirim ke Ibu Yuni' => $dokumen->sent_to_ibub_at ? $dokumen->sent_to_ibub_at->format('d-m-Y H:i') : null,
             'Tanggal Diproses' => $dokumen->processed_at ? $dokumen->processed_at->format('d-m-Y H:i') : null,
             'Tanggal Dikembalikan' => $dokumen->returned_to_ibua_at ? $dokumen->returned_to_ibua_at->format('d-m-Y H:i') : null,
         ];
@@ -693,7 +730,7 @@ class DashboardBController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Dokumen berhasil dikirim kembali ke perpajakan.'
+                'message' => 'Dokumen berhasil dikirim kembali ke Team Perpajakan.'
             ]);
 
         } catch (\Exception $e) {
@@ -738,12 +775,17 @@ class DashboardBController extends Controller
             // Note: Deadline will be set by the destination department (perpajakan/akutansi) themselves
             if ($request->next_handler === 'perpajakan') {
                 $updateData['sent_to_perpajakan_at'] = now();
-                // Reset perpajakan deadline to null so document will be locked until perpajakan sets deadline
+                // Reset deadline_at to null so document will be locked until perpajakan sets deadline
+                $updateData['deadline_at'] = null;
+                $updateData['deadline_days'] = null;
+                $updateData['deadline_note'] = null;
+                // Also reset perpajakan-specific deadline fields
                 $updateData['deadline_perpajakan_at'] = null;
                 $updateData['deadline_perpajakan_days'] = null;
                 $updateData['deadline_perpajakan_note'] = null;
             } elseif ($request->next_handler === 'akutansi') {
-                // Reset general deadline to null so document will be locked until akutansi sets deadline
+                $updateData['sent_to_akutansi_at'] = now();
+                // Reset deadline_at to null so document will be locked until akutansi sets deadline
                 $updateData['deadline_at'] = null;
                 $updateData['deadline_days'] = null;
                 $updateData['deadline_note'] = null;
@@ -753,7 +795,7 @@ class DashboardBController extends Controller
 
             \DB::commit();
 
-            $nextHandlerName = $request->next_handler === 'perpajakan' ? 'Perpajakan' : 'Akutansi';
+            $nextHandlerName = $request->next_handler === 'perpajakan' ? 'Team Perpajakan' : 'Team Akutansi';
 
             \Log::info("Document #{$dokumen->id} sent to {$nextHandlerName} by ibuB");
 
@@ -1284,7 +1326,7 @@ class DashboardBController extends Controller
             if ($dokumen->current_handler !== 'ibuB') {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Anda tidak memiliki izin untuk mengembalikan dokumen ini ke IbuA.'
+                    'message' => 'Anda tidak memiliki izin untuk mengembalikan dokumen ini ke Ibu Tarapul.'
                 ], 403);
             }
 
@@ -1321,7 +1363,7 @@ class DashboardBController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Dokumen berhasil dikembalikan ke IbuA.'
+                'message' => 'Dokumen berhasil dikembalikan ke Ibu Tarapul.'
             ]);
 
         } catch (\Illuminate\Validation\ValidationException $e) {
@@ -1335,7 +1377,7 @@ class DashboardBController extends Controller
 
             return response()->json([
                 'success' => false,
-                'message' => 'Terjadi kesalahan saat mengembalikan dokumen ke IbuA.'
+                'message' => 'Terjadi kesalahan saat mengembalikan dokumen ke Ibu Tarapul.'
             ], 500);
         }
     }
@@ -1452,7 +1494,7 @@ class DashboardBController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Dokumen berhasil diterima dan masuk ke sistem IbuB.'
+                'message' => 'Dokumen berhasil diterima dan masuk ke sistem Ibu Yuni.'
             ]);
 
         } catch (Exception $e) {
@@ -1518,7 +1560,7 @@ class DashboardBController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Dokumen berhasil ditolak dan dikembalikan ke IbuA.'
+                'message' => 'Dokumen berhasil ditolak dan dikembalikan ke Ibu Tarapul.'
             ]);
 
         } catch (\Illuminate\Validation\ValidationException $e) {
@@ -1698,6 +1740,81 @@ class DashboardBController extends Controller
 
         // Fallback: cast to string
         return (string) $value;
+    }
+
+    /**
+     * Get search suggestions when no results found
+     */
+    private function getSearchSuggestions($searchTerm, $year = null, $handler = 'ibuB'): array
+    {
+        $suggestions = [];
+        
+        // Get all unique values from relevant fields
+        $baseQuery = Dokumen::where(function($q) use ($handler) {
+            $q->where('current_handler', $handler)
+              ->orWhere(function($subQ) {
+                  $subQ->where('status', 'sedang_diproses')
+                        ->where('current_handler', 'ibuB');
+              })
+              ->orWhereIn('status', ['sent_to_perpajakan', 'sent_to_akutansi']);
+        })
+        ->where('status', '!=', 'returned_to_bidang');
+        
+        if ($year) {
+            $baseQuery->where('tahun', $year);
+        }
+        
+        // Collect all searchable values
+        $allValues = collect();
+        
+        // Get from main fields
+        $fields = ['nomor_agenda', 'nomor_spp', 'uraian_spp', 'nama_pengirim', 'bagian', 
+                   'kategori', 'jenis_dokumen', 'no_berita_acara', 'no_spk', 
+                   'nomor_mirror', 'nomor_miro', 'keterangan', 'dibayar_kepada'];
+        
+        foreach ($fields as $field) {
+            $values = $baseQuery->whereNotNull($field)
+                ->distinct()
+                ->pluck($field)
+                ->filter()
+                ->toArray();
+            $allValues = $allValues->merge($values);
+        }
+        
+        // Get from dibayarKepadas relation
+        $dibayarKepadaQuery = DibayarKepada::whereHas('dokumen', function($q) use ($handler, $year) {
+            $q->where(function($subQ) use ($handler) {
+                $subQ->where('current_handler', $handler)
+                     ->orWhere(function($subSubQ) {
+                         $subSubQ->where('status', 'sedang_diproses')
+                               ->where('current_handler', 'ibuB');
+                     })
+                     ->orWhereIn('status', ['sent_to_perpajakan', 'sent_to_akutansi']);
+            })
+            ->where('status', '!=', 'returned_to_bidang');
+            if ($year) {
+                $q->where('tahun', $year);
+            }
+        });
+        
+        $dibayarKepadaValues = $dibayarKepadaQuery
+            ->distinct()
+            ->pluck('nama_penerima')
+            ->filter()
+            ->toArray();
+        
+        $allValues = $allValues->merge($dibayarKepadaValues);
+        
+        // Remove duplicates and find suggestions
+        $uniqueValues = $allValues->unique()->values()->toArray();
+        $foundSuggestions = SearchHelper::findSuggestions($searchTerm, $uniqueValues, 60.0, 5);
+        
+        // Format suggestions
+        foreach ($foundSuggestions as $suggestion) {
+            $suggestions[] = $suggestion['value'];
+        }
+        
+        return $suggestions;
     }
 }
 

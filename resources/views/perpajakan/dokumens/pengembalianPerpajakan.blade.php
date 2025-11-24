@@ -424,7 +424,7 @@
 
 <div class="container-fluid">
   <div class="d-flex justify-content-between align-items-center mb-4">
-    <h2 class="form-title">Daftar Pengembalian Dokumen Perpajakan ke team verifikasi</h2>
+    <h2 class="form-title">Daftar Pengembalian Dokumen Team Perpajakan ke team verifikasi</h2>
   </div>
 
   <!-- Statistics Cards -->
@@ -558,7 +558,7 @@
           <h5>Belum ada dokumen</h5>
           <p class="mt-2">Tidak ada dokumen yang dikembalikan ke team verifikasi saat ini.</p>
           <a href="{{ route('dokumensPerpajakan.index') }}" class="btn btn-primary mt-3">
-            <i class="fa-solid fa-arrow-left me-2"></i>Kembali ke Daftar Dokumen Perpajakan
+            <i class="fa-solid fa-arrow-left me-2"></i>Kembali ke Daftar Dokumen Team Perpajakan
           </a>
         </div>
       @endif

@@ -6,6 +6,8 @@ use Illuminate\Http\Request;
 use App\Models\Dokumen;
 use App\Models\DokumenPO;
 use App\Models\DokumenPR;
+use App\Models\DibayarKepada;
+use App\Helpers\SearchHelper;
 use Illuminate\Support\Facades\Validator;
 
 class DashboardPerpajakanController extends Controller
@@ -67,7 +69,7 @@ class DashboardPerpajakanController extends Controller
             ->get();
 
         $data = array(
-            "title" => "Dashboard Perpajakan",
+            "title" => "Dashboard Team Perpajakan",
             "module" => "perpajakan",
             "menuDashboard" => "Active",
             'menuDokumen' => '',
@@ -82,32 +84,86 @@ class DashboardPerpajakanController extends Controller
         return view('perpajakan.dashboardPerpajakan', $data);
     }
 
-    public function dokumens(){
+    public function dokumens(Request $request){
         // Perpajakan sees:
         // 1. Documents with current_handler = perpajakan (active documents)
         // 2. Documents that were sent to akutansi (for tracking like dokumensB)
-        $dokumens = Dokumen::query()
-            ->where(function ($query) {
-                $query->where('current_handler', 'perpajakan')
-                      ->orWhere('status', 'sent_to_akutansi');
+        $query = Dokumen::query()
+            ->where(function ($q) {
+                $q->where('current_handler', 'perpajakan')
+                  ->orWhere('status', 'sent_to_akutansi');
             })
-            ->with(['dokumenPos', 'dokumenPrs'])
-            ->orderByRaw("CASE
+            ->with(['dokumenPos', 'dokumenPrs', 'dibayarKepadas']);
+
+        // Enhanced search functionality - search across all relevant fields
+        if ($request->has('search') && !empty($request->search) && trim((string)$request->search) !== '') {
+            $search = trim((string)$request->search);
+            $query->where(function($q) use ($search) {
+                // Text fields
+                $q->where('nomor_agenda', 'like', '%' . $search . '%')
+                  ->orWhere('nomor_spp', 'like', '%' . $search . '%')
+                  ->orWhere('uraian_spp', 'like', '%' . $search . '%')
+                  ->orWhere('nama_pengirim', 'like', '%' . $search . '%')
+                  ->orWhere('bagian', 'like', '%' . $search . '%')
+                  ->orWhere('kategori', 'like', '%' . $search . '%')
+                  ->orWhere('jenis_dokumen', 'like', '%' . $search . '%')
+                  ->orWhere('no_berita_acara', 'like', '%' . $search . '%')
+                  ->orWhere('no_spk', 'like', '%' . $search . '%')
+                  ->orWhere('nomor_mirror', 'like', '%' . $search . '%')
+                  ->orWhere('nomor_miro', 'like', '%' . $search . '%')
+                  ->orWhere('keterangan', 'like', '%' . $search . '%')
+                  ->orWhere('dibayar_kepada', 'like', '%' . $search . '%');
+                
+                // Search in nilai_rupiah - handle various formats
+                $numericSearch = preg_replace('/[^0-9]/', '', $search);
+                if (is_numeric($numericSearch) && $numericSearch > 0) {
+                    $q->orWhereRaw('CAST(nilai_rupiah AS CHAR) LIKE ?', ['%' . $numericSearch . '%']);
+                }
+            })
+            ->orWhereHas('dibayarKepadas', function($q) use ($search) {
+                $q->where('nama_penerima', 'like', '%' . $search . '%');
+            });
+        }
+
+        // Filter by year
+        if ($request->has('year') && $request->year) {
+            $query->where('tahun', $request->year);
+        }
+
+        $dokumens = $query->orderByRaw("CASE
                 WHEN current_handler = 'perpajakan' AND status != 'sent_to_akutansi' THEN 1
                 WHEN status = 'sent_to_akutansi' THEN 2
                 ELSE 3
             END")
             ->orderByDesc('sent_to_perpajakan_at')
             ->orderByDesc('updated_at')
-            ->get();
+            ->paginate(10);
+
+        // Add lock status to each document - use getCollection() to modify items while keeping Paginator
+        $dokumens->getCollection()->transform(function ($dokumen) {
+            $dokumen->is_locked = \App\Helpers\DokumenHelper::isDocumentLocked($dokumen);
+            $dokumen->lock_status_message = \App\Helpers\DokumenHelper::getLockedStatusMessage($dokumen);
+            $dokumen->can_edit = \App\Helpers\DokumenHelper::canEditDocument($dokumen, 'perpajakan');
+            $dokumen->can_set_deadline = \App\Helpers\DokumenHelper::canSetDeadline($dokumen)['can_set'];
+            $dokumen->lock_status_class = \App\Helpers\DokumenHelper::getLockStatusClass($dokumen);
+            return $dokumen;
+        });
+
+        // Get suggestions if no results found
+        $suggestions = [];
+        if ($request->has('search') && !empty($request->search) && trim((string)$request->search) !== '' && $dokumens->total() == 0) {
+            $searchTerm = trim((string)$request->search);
+            $suggestions = $this->getSearchSuggestions($searchTerm, $request->year, 'perpajakan');
+        }
 
         $data = array(
-            "title" => "Daftar Dokumen Perpajakan",
+            "title" => "Daftar Dokumen Team Perpajakan",
             "module" => "perpajakan",
             "menuDashboard" => "",
             'menuDokumen' => 'Active',
             'menuDaftarDokumen' => 'Active',
             'dokumens' => $dokumens,
+            'suggestions' => $suggestions,
         );
         return view('perpajakan.dokumens.daftarPerpajakan', $data);
     }
@@ -313,18 +369,37 @@ class DashboardPerpajakanController extends Controller
         }
 
         try {
+            // Use helper for validation
+            $validation = \App\Helpers\DokumenHelper::canSetDeadline($dokumen);
+            if (!$validation['can_set']) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $validation['message'],
+                    'debug_info' => $validation['debug']
+                ], 403);
+            }
+
             $deadlineDays = (int) $request->deadline_days;
             $deadlineAt = now()->addDays($deadlineDays);
+            $deadlineNote = isset($request->deadline_note) && trim($request->deadline_note) !== '' 
+                ? trim($request->deadline_note) 
+                : null;
 
+            // Update both deadline_at (for locking) and deadline_perpajakan_at (for perpajakan-specific tracking)
             $dokumen->update([
+                'deadline_at' => $deadlineAt, // This unlocks the document
+                'deadline_days' => $deadlineDays,
+                'deadline_note' => $deadlineNote,
                 'deadline_perpajakan_at' => $deadlineAt,
                 'deadline_perpajakan_days' => $deadlineDays,
-                'deadline_perpajakan_note' => $request->deadline_note,
+                'deadline_perpajakan_note' => $deadlineNote,
+                'status' => 'sedang diproses', // Change status to allow editing
+                'processed_at' => now(),
             ]);
 
             return response()->json([
                 'success' => true,
-                'message' => 'Deadline berhasil ditetapkan',
+                'message' => "Deadline berhasil ditetapkan ({$deadlineDays} hari). Dokumen sekarang terbuka untuk diproses.",
                 'deadline' => $deadlineAt->format('d M Y, H:i'),
             ]);
 
@@ -351,7 +426,7 @@ class DashboardPerpajakanController extends Controller
         }
 
         // Load required relationships
-        $dokumen->load(['dokumenPos', 'dokumenPrs']);
+        $dokumen->load(['dokumenPos', 'dokumenPrs', 'dibayarKepadas']);
 
         // Return HTML partial for detail view
         $html = $this->generateDocumentDetailHtml($dokumen);
@@ -379,7 +454,9 @@ class DashboardPerpajakanController extends Controller
             'Jenis Dokumen' => $dokumen->jenis_dokumen ?? '-',
             'SubBagian Pekerjaan' => $dokumen->jenis_sub_pekerjaan ?? '-',
             'Jenis Pembayaran' => $dokumen->jenis_pembayaran ?? '-',
-            'Dibayar Kepada' => $dokumen->dibayar_kepada ?? '-',
+            'Dibayar Kepada' => $dokumen->dibayarKepadas->count() > 0
+                ? htmlspecialchars($dokumen->dibayarKepadas->pluck('nama_penerima')->join(', '))
+                : ($dokumen->dibayar_kepada ?? '-'),
             'No Berita Acara' => $dokumen->no_berita_acara ?? '-',
             'Tanggal Berita Acara' => $dokumen->tanggal_berita_acara ? $dokumen->tanggal_berita_acara->format('d/m/Y') : '-',
             'No SPK' => $dokumen->no_spk ?? '-',
@@ -542,43 +619,55 @@ class DashboardPerpajakanController extends Controller
         try {
             \DB::beginTransaction();
 
-            // Update document status to returned to ibuB
+            // Log before update
+            \Log::info('Returning document from perpajakan', [
+                'document_id' => $dokumen->id,
+                'nomor_agenda' => $dokumen->nomor_agenda,
+                'current_handler' => $dokumen->current_handler,
+                'current_status' => $dokumen->status,
+                'return_reason_length' => strlen($request->return_reason)
+            ]);
+
+            // Update all fields in a single call to avoid multiple queries and potential issues
             $dokumen->update([
                 'status' => 'returned_to_department',
                 'current_handler' => 'ibuB',
                 'returned_from_perpajakan_at' => now(),
                 'alasan_pengembalian' => $request->return_reason,
-            ]);
-
-            // Reset tax status since document is being returned
-            $dokumen->update([
+                // Reset tax status since document is being returned
                 'status_perpajakan' => null,
                 'tanggal_selesai_verifikasi_pajak' => null,
                 'deadline_perpajakan_at' => null,
                 'deadline_perpajakan_note' => null,
-                // Keep other tax fields for historical reference
-            ]);
-
-            // Clear sent timestamps
-            $dokumen->update([
+                // Clear sent timestamps and mark when sent back to ibuB
                 'sent_to_perpajakan_at' => null,
-                'sent_to_ibub_at' => now(), // Mark when sent back to ibuB
+                'sent_to_ibub_at' => now(),
             ]);
 
             \DB::commit();
 
+            \Log::info('Document successfully returned from perpajakan', [
+                'document_id' => $dokumen->id,
+                'nomor_agenda' => $dokumen->nomor_agenda
+            ]);
+
             return response()->json([
                 'success' => true,
-                'message' => 'Dokumen berhasil dikembalikan ke IbuB.'
+                'message' => 'Dokumen berhasil dikembalikan ke Ibu Yuni.'
             ]);
 
         } catch (\Exception $e) {
             \DB::rollBack();
-            \Log::error('Error returning document: ' . $e->getMessage());
+            \Log::error('Error returning document from perpajakan', [
+                'document_id' => $dokumen->id ?? 'unknown',
+                'error_message' => $e->getMessage(),
+                'error_trace' => $e->getTraceAsString(),
+                'request_data' => $request->all()
+            ]);
 
             return response()->json([
                 'success' => false,
-                'message' => 'Terjadi kesalahan saat mengembalikan dokumen.'
+                'message' => 'Terjadi kesalahan saat mengembalikan dokumen: ' . $e->getMessage()
             ], 500);
         }
     }
@@ -600,7 +689,7 @@ class DashboardPerpajakanController extends Controller
         if ($dokumen->status_perpajakan !== 'selesai') {
             return response()->json([
                 'success' => false,
-                'message' => 'Dokumen ini tidak dapat dikirim. Status perpajakan harus "Selesai" terlebih dahulu.'
+                'message' => 'Dokumen ini tidak dapat dikirim. Status Team Perpajakan harus "Selesai" terlebih dahulu.'
             ], 422);
         }
 
@@ -608,18 +697,23 @@ class DashboardPerpajakanController extends Controller
             \DB::beginTransaction();
 
             // Update document to keep it in perpajakan view but mark as sent
+            // Reset deadline_at so document will be locked until akutansi sets deadline
             $dokumen->update([
                 'status' => 'sent_to_akutansi', // Keep document in perpajakan view
                 'current_handler' => 'akutansi', // Move to akutansi for processing
                 'sent_to_akutansi_at' => now(), // Mark timestamp when sent to akutansi
                 'tanggal_selesai_verifikasi_pajak' => now(), // Mark completion timestamp
+                // Reset deadline so akutansi must set their own deadline
+                'deadline_at' => null,
+                'deadline_days' => null,
+                'deadline_note' => null,
             ]);
 
             \DB::commit();
 
             return response()->json([
                 'success' => true,
-                'message' => 'Dokumen berhasil dikirim ke Akutansi. Dokumen tetap ditampilkan di halaman Perpajakan dengan status "Sudah terkirim ke Akutansi".'
+                'message' => 'Dokumen berhasil dikirim ke Team Akutansi. Dokumen tetap ditampilkan di halaman Team Perpajakan dengan status "Sudah terkirim ke Team Akutansi".'
             ]);
 
         } catch (\Exception $e) {
@@ -628,7 +722,7 @@ class DashboardPerpajakanController extends Controller
 
             return response()->json([
                 'success' => false,
-                'message' => 'Terjadi kesalahan saat mengirim dokumen ke Akutansi.'
+                'message' => 'Terjadi kesalahan saat mengirim dokumen ke Team Akutansi.'
             ], 500);
         }
     }
@@ -798,5 +892,68 @@ class DashboardPerpajakanController extends Controller
                 'returned_to_ibua' => $query->where('status', 'returned_to_ibua')->count(),
             ]
         ];
+    }
+
+    /**
+     * Get search suggestions when no results found
+     */
+    private function getSearchSuggestions($searchTerm, $year = null, $handler = 'perpajakan'): array
+    {
+        $suggestions = [];
+        
+        // Get all unique values from relevant fields
+        $baseQuery = Dokumen::where(function($q) use ($handler) {
+            $q->where('current_handler', $handler)
+              ->orWhere('status', 'sent_to_akutansi');
+        });
+        
+        if ($year) {
+            $baseQuery->where('tahun', $year);
+        }
+        
+        // Collect all searchable values
+        $allValues = collect();
+        
+        // Get from main fields
+        $fields = ['nomor_agenda', 'nomor_spp', 'uraian_spp', 'nama_pengirim', 'bagian', 
+                   'kategori', 'jenis_dokumen', 'no_berita_acara', 'no_spk', 
+                   'nomor_mirror', 'nomor_miro', 'keterangan', 'dibayar_kepada'];
+        
+        foreach ($fields as $field) {
+            $values = $baseQuery->whereNotNull($field)
+                ->distinct()
+                ->pluck($field)
+                ->filter()
+                ->toArray();
+            $allValues = $allValues->merge($values);
+        }
+        
+        // Get from dibayarKepadas relation
+        $dibayarKepadaValues = DibayarKepada::whereHas('dokumen', function($q) use ($handler, $year) {
+            $q->where(function($subQ) use ($handler) {
+                $subQ->where('current_handler', $handler)
+                     ->orWhere('status', 'sent_to_akutansi');
+            });
+            if ($year) {
+                $q->where('tahun', $year);
+            }
+        })
+        ->distinct()
+        ->pluck('nama_penerima')
+        ->filter()
+        ->toArray();
+        
+        $allValues = $allValues->merge($dibayarKepadaValues);
+        
+        // Remove duplicates and find suggestions
+        $uniqueValues = $allValues->unique()->values()->toArray();
+        $foundSuggestions = SearchHelper::findSuggestions($searchTerm, $uniqueValues, 60.0, 5);
+        
+        // Format suggestions
+        foreach ($foundSuggestions as $suggestion) {
+            $suggestions[] = $suggestion['value'];
+        }
+        
+        return $suggestions;
     }
 }

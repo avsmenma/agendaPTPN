@@ -109,7 +109,7 @@
       @if(in_array($dokumen->status, ['draft', 'returned_to_ibua']))
         <span class="badge badge-status badge-yellow">⏳ Belum Dikirim</span>
       @else
-        <span class="badge badge-status badge-green">✓ Sudah Dikirim ke IbuB</span>
+        <span class="badge badge-status badge-green">✓ Sudah Dikirim ke Ibu Yuni</span>
       @endif
     </span>
   </div>
@@ -121,7 +121,7 @@
   @endif
   @if($dokumen->sent_to_ibub_at)
   <div class="detail-item">
-    <span class="detail-label">Dikirim ke IbuB</span>
+    <span class="detail-label">Dikirim ke Ibu Yuni</span>
     <span class="detail-value">{{ $dokumen->sent_to_ibub_at->format('d M Y H:i') }}</span>
   </div>
   @endif

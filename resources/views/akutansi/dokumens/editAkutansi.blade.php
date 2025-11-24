@@ -236,7 +236,7 @@
     @csrf
     @method('PUT')
     <!-- Input Dokumen Baru -->
-    <div class="section-title">Edit Dokumen Akutansi</div>
+    <div class="section-title">Edit Dokumen Team Akutansi</div>
 
     <div class="form-row">
       <div class="form-group">
@@ -267,22 +267,26 @@
     <div class="form-row">
       <div class="form-group">
         <label>Tahun</label>
-        <input type="text" placeholder="2025" value="2025">
+        <input type="text" name="tahun" placeholder="2025" 
+               value="{{ old('tahun', $dokumen->tahun) }}" required>
       </div>
       <div class="form-group">
         <label>Tanggal Masuk</label>
-        <input type="datetime-local" value="2025-01-15T10:30">
+        <input type="datetime-local" name="tanggal_masuk" 
+               value="{{ old('tanggal_masuk', $dokumen->tanggal_masuk ? $dokumen->tanggal_masuk->format('Y-m-d\TH:i') : '') }}">
       </div>
     </div>
 
     <div class="form-row">
       <div class="form-group">
         <label>Nomor SPP</label>
-        <input type="text" placeholder="123/M/SPP/13/XII/2025" value="123/M/SPP/13/I/2025">
+        <input type="text" name="nomor_spp" placeholder="123/M/SPP/13/XII/2025" 
+               value="{{ old('nomor_spp', $dokumen->nomor_spp) }}" required>
       </div>
       <div class="form-group">
         <label>Tanggal SPP</label>
-        <input type="datetime-local" value="2025-01-15T10:00">
+        <input type="date" name="tanggal_spp" 
+               value="{{ old('tanggal_spp', $dokumen->tanggal_spp ? $dokumen->tanggal_spp->format('Y-m-d') : '') }}">
       </div>
     </div>
 
@@ -291,7 +295,7 @@
       <textarea name="uraian_spp" placeholder="Permintaan permohonan pembayaran..." rows="3">{{ old('uraian_spp', $dokumen->uraian_spp) }}</textarea>
     </div>
 
-    <!-- Nilai Rupiah & Tanggal SPP -->
+    <!-- Nilai Rupiah -->
     <div class="form-row">
       <div class="form-group">
         <label>Nilai Rupiah</label>
@@ -299,9 +303,7 @@
                value="{{ old('nilai_rupiah', $dokumen->nilai_rupiah) }}" required>
       </div>
       <div class="form-group">
-        <label>Tanggal SPP</label>
-        <input type="date" name="tanggal_spp"
-               value="{{ old('tanggal_spp', $dokumen->tanggal_spp ? $dokumen->tanggal_spp->format('Y-m-d') : '') }}">
+        <!-- Empty space to maintain grid layout -->
       </div>
     </div>
 
@@ -386,11 +388,11 @@
     </div>
 
     <!-- SECTION KHUSUS AKUTANSI (sama seperti perpajakan) -->
-    <div class="section-title">Informasi Akutansi</div>
+    <div class="section-title">Informasi Team Akutansi</div>
 
     <div class="form-row">
       <div class="form-group">
-        <label>Status Perpajakan</label>
+        <label>Status Team Perpajakan</label>
         <select>
           <option>Pilih Status</option>
           <option selected>Sedang Diproses</option>
@@ -440,7 +442,7 @@
       </div>
     </div>
 
-    <!-- MIRO Section - Khusus Akutansi -->
+    <!-- MIRO Section - Khusus Team Akutansi -->
     <div class="form-row">
       <div class="form-group">
         <label style="color: #083E40; font-weight: 700;">

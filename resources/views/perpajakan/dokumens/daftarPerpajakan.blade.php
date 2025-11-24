@@ -88,7 +88,7 @@
   .table-enhanced {
     border-collapse: separate;
     border-spacing: 0;
-    min-width: 1200px; /* Minimum width for horizontal scroll */
+    min-width: 1450px; /* Minimum width for horizontal scroll with uraian column */
     width: 100%;
   }
 
@@ -146,11 +146,12 @@
   }
 
   .table-enhanced td {
-    padding: 16px;
+    padding: 14px 12px;
     vertical-align: middle;
     border-right: 1px solid rgba(26, 77, 62, 0.05);
-    white-space: nowrap;
     font-size: 13px;
+    font-weight: 500;
+    color: #2c3e50;
     border-bottom: 1px solid rgba(26, 77, 62, 0.05);
     text-align: center;
   }
@@ -164,6 +165,15 @@
   .table-enhanced .col-deadline,
   .table-enhanced .col-action {
     text-align: center;
+  }
+
+  /* Uraian column - improved styling like akutansi */
+  .table-enhanced .col-uraian {
+    text-align: left;
+    word-wrap: break-word;
+    word-break: break-word;
+    white-space: normal;
+    line-height: 1.4;
   }
 
   /* Special styling for centered content */
@@ -185,27 +195,413 @@
     text-align: center;
   }
 
+  /* Modern deadline card design for perpajakan - same as ibuB */
+  .deadline-card {
+    position: relative;
+    background: white;
+    border-radius: 12px;
+    padding: 10px 12px;
+    border: 2px solid transparent;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow: hidden;
+    margin: 0 auto;
+    max-width: 150px;
+  }
+
+  .deadline-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, var(--deadline-color) 0%, var(--deadline-color-light) 100%);
+    transition: height 0.3s ease;
+  }
+
+  .deadline-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+    border-color: var(--deadline-color);
+  }
+
+  .deadline-card:hover::before {
+    height: 5px;
+  }
+
+  .deadline-time {
+    font-size: 11px;
+    font-weight: 700;
+    color: #2c3e50;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+  }
+
+  .deadline-time i {
+    font-size: 10px;
+    color: var(--deadline-color);
+  }
+
+  .deadline-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 5px 12px;
+    border-radius: 20px;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .deadline-indicator::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+    transition: left 0.5s ease;
+  }
+
+  .deadline-card:hover .deadline-indicator::before {
+    left: 100%;
+  }
+
+  /* Safe State - Green Theme */
+  .deadline-card.deadline-safe {
+    --deadline-color: #10b981;
+    --deadline-color-light: #34d399;
+    --deadline-bg: #ecfdf5;
+    --deadline-text: #065f46;
+  }
+
+  .deadline-card.deadline-safe {
+    background: var(--deadline-bg);
+    border-color: rgba(16, 185, 129, 0.2);
+  }
+
+  .deadline-card.deadline-safe .deadline-time {
+    color: var(--deadline-text);
+  }
+
+  .deadline-indicator.deadline-safe {
+    background: linear-gradient(135deg, var(--deadline-color) 0%, var(--deadline-color-light) 100%);
+    color: white;
+    box-shadow: 0 3px 10px rgba(16, 185, 129, 0.4);
+  }
+
+  .deadline-indicator.deadline-safe i::before {
+    content: "\f058"; /* check-circle */
+  }
+
+  /* Warning State - Orange Theme */
+  .deadline-card.deadline-warning {
+    --deadline-color: #f59e0b;
+    --deadline-color-light: #fbbf24;
+    --deadline-bg: #fffbeb;
+    --deadline-text: #92400e;
+  }
+
+  .deadline-card.deadline-warning {
+    background: var(--deadline-bg);
+    border-color: rgba(245, 158, 11, 0.2);
+  }
+
+  .deadline-card.deadline-warning .deadline-time {
+    color: var(--deadline-text);
+  }
+
+  .deadline-indicator.deadline-warning {
+    background: linear-gradient(135deg, var(--deadline-color) 0%, var(--deadline-color-light) 100%);
+    color: white;
+    box-shadow: 0 3px 10px rgba(245, 158, 11, 0.4);
+  }
+
+  .deadline-indicator.deadline-warning i::before {
+    content: "\f071"; /* exclamation-triangle */
+  }
+
+  /* Danger State - Red Theme */
+  .deadline-card.deadline-danger {
+    --deadline-color: #ef4444;
+    --deadline-color-light: #f87171;
+    --deadline-bg: #fef2f2;
+    --deadline-text: #991b1b;
+  }
+
+  .deadline-card.deadline-danger {
+    background: var(--deadline-bg);
+    border-color: rgba(239, 68, 68, 0.2);
+  }
+
+  .deadline-card.deadline-danger .deadline-time {
+    color: var(--deadline-text);
+    font-weight: 800;
+  }
+
+  .deadline-indicator.deadline-danger {
+    background: linear-gradient(135deg, var(--deadline-color) 0%, var(--deadline-color-light) 100%);
+    color: white;
+    box-shadow: 0 3px 10px rgba(239, 68, 68, 0.4);
+    animation: danger-pulse 2s infinite;
+  }
+
+  .deadline-indicator.deadline-danger i::before {
+    content: "\f06a"; /* exclamation-circle */
+  }
+
+  /* Overdue State - Dark Red with Alert Animation */
+  .deadline-card.deadline-overdue {
+    --deadline-color: #dc2626;
+    --deadline-color-light: #ef4444;
+    --deadline-bg: #fef2f2;
+    --deadline-text: #991b1b;
+  }
+
+  .deadline-card.deadline-overdue {
+    background: var(--deadline-bg);
+    border-color: rgba(220, 38, 38, 0.3);
+    animation: overdue-alert 3s infinite;
+  }
+
+  .deadline-card.deadline-overdue .deadline-time {
+    color: var(--deadline-text);
+    font-weight: 800;
+  }
+
+  .deadline-indicator.deadline-overdue {
+    background: linear-gradient(135deg, var(--deadline-color) 0%, var(--deadline-color-light) 100%);
+    color: white;
+    box-shadow: 0 4px 16px rgba(220, 38, 68, 0.5);
+    font-weight: 800;
+    animation: overdue-glow 1.5s infinite;
+  }
+
+  .deadline-indicator.deadline-overdue i::before {
+    content: "\f071"; /* exclamation-triangle */
+    animation: warning-shake 1s infinite;
+  }
+
+  /* Enhanced late information */
+  .late-info {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 10px;
+    font-weight: 700;
+    margin-top: 8px;
+    padding: 6px 10px;
+    border-radius: 20px;
+    background: linear-gradient(135deg, rgba(220, 38, 68, 0.1) 0%, rgba(239, 68, 68, 0.15) 100%);
+    border: 1px solid rgba(220, 38, 68, 0.3);
+    color: #991b1b;
+    animation: late-warning 2s infinite;
+  }
+
+  .late-info i {
+    font-size: 11px;
+    color: #dc2626;
+  }
+
+  .late-info .late-text {
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  /* Progress indicator */
+  .deadline-progress {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg,
+      var(--deadline-color) 0%,
+      var(--deadline-color-light) 50%,
+      var(--deadline-color) 100%);
+    border-radius: 0 0 10px 10px;
+    transform-origin: left;
+    transition: transform 0.5s ease;
+  }
+
+  /* Note styling */
+  .deadline-note {
+    font-size: 9px;
+    color: #6b7280;
+    font-style: italic;
+    margin-top: 4px;
+    line-height: 1.3;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-align: center;
+  }
+
+  /* No deadline state */
+  .no-deadline {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: #9ca3af;
+    font-size: 11px;
+    font-style: italic;
+    padding: 8px 12px;
+    border-radius: 20px;
+    background: #f9fafb;
+    border: 1px dashed #d1d5db;
+    transition: all 0.3s ease;
+  }
+
+  .no-deadline:hover {
+    background: #f3f4f6;
+    border-color: #9ca3af;
+  }
+
+  .no-deadline i {
+    font-size: 11px;
+    opacity: 0.7;
+  }
+
+  /* Animations */
+  @keyframes danger-pulse {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.05); opacity: 0.9; }
+  }
+
+  @keyframes overdue-alert {
+    0%, 85%, 100% {
+      border-color: rgba(220, 38, 38, 0.3);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    }
+    90%, 95% {
+      border-color: rgba(220, 38, 38, 0.8);
+      box-shadow: 0 0 16px rgba(220, 38, 38, 0.4);
+    }
+  }
+
+  @keyframes overdue-glow {
+    0%, 100% {
+      box-shadow: 0 4px 16px rgba(220, 38, 68, 0.5);
+      transform: translateY(0);
+    }
+    50% {
+      box-shadow: 0 6px 24px rgba(220, 38, 68, 0.7);
+      transform: translateY(-1px);
+    }
+  }
+
+  @keyframes late-warning {
+    0%, 100% {
+      background: linear-gradient(135deg, rgba(220, 38, 68, 0.1) 0%, rgba(239, 68, 68, 0.15) 100%);
+      transform: scale(1);
+    }
+    50% {
+      background: linear-gradient(135deg, rgba(220, 38, 68, 0.15) 0%, rgba(239, 68, 68, 0.25) 100%);
+      transform: scale(1.02);
+    }
+  }
+
+  @keyframes warning-shake {
+    0%, 100% { transform: translateX(0) rotate(0deg); }
+    25% { transform: translateX(-1px) rotate(-1deg); }
+    75% { transform: translateX(1px) rotate(1deg); }
+  }
+
+  /* Mobile responsive */
+  @media (max-width: 768px) {
+    .deadline-card {
+      padding: 8px 10px;
+      max-width: 130px;
+    }
+
+    .deadline-time {
+      font-size: 10px;
+    }
+
+    .deadline-indicator {
+      font-size: 9px;
+      padding: 4px 10px;
+    }
+
+    .late-info {
+      font-size: 9px;
+      padding: 4px 8px;
+      margin-top: 6px;
+    }
+
+    .deadline-note {
+      font-size: 8px;
+    }
+  }
+
+  @media (max-width: 576px) {
+    .deadline-card {
+      padding: 6px 8px;
+      max-width: 120px;
+    }
+
+    .deadline-time {
+      font-size: 9px;
+    }
+
+    .deadline-indicator {
+      font-size: 8px;
+      padding: 3px 8px;
+    }
+
+    .deadline-note {
+      font-size: 7px;
+    }
+
+    .no-deadline {
+      font-size: 9px;
+      padding: 6px 10px;
+    }
+
+    .late-info {
+      font-size: 8px;
+      padding: 3px 6px;
+    }
+  }
+
   /* Column Widths for Horizontal Scroll */
   .table-enhanced .col-no {
-    width: 80px;
-    min-width: 80px;
+    width: 60px;
+    min-width: 60px;
     text-align: center;
     font-weight: 600;
   }
   .table-enhanced .col-agenda {
+    width: 140px;
+    min-width: 140px;
+    text-align: center;
+  }
+  .table-enhanced .col-spp {
+    width: 140px;
+    min-width: 140px;
+    text-align: center;
+  }
+  .table-enhanced .col-nilai {
     width: 150px;
     min-width: 150px;
     text-align: center;
   }
-  .table-enhanced .col-spp {
-    width: 160px;
-    min-width: 160px;
-    text-align: center;
-  }
-  .table-enhanced .col-nilai {
-    width: 140px;
-    min-width: 140px;
-    text-align: center;
+  .table-enhanced .col-uraian {
+    width: 300px;
+    min-width: 300px;
+    text-align: left;
   }
   .table-enhanced .col-status {
     width: 160px;
@@ -213,8 +609,8 @@
     text-align: center;
   }
   .table-enhanced .col-deadline {
-    width: 180px;
-    min-width: 180px;
+    width: 140px;
+    min-width: 140px;
     text-align: center;
   }
   .table-enhanced .col-action {
@@ -871,6 +1267,28 @@
     box-shadow: 0 6px 20px rgba(26, 77, 62, 0.3);
   }
 
+  .filter-section {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+
+  .filter-section select,
+  .filter-section input {
+    padding: 10px 14px;
+    border: 2px solid rgba(26, 77, 62, 0.1);
+    border-radius: 10px;
+    font-size: 13px;
+    transition: all 0.3s ease;
+  }
+
+  .filter-section select:focus,
+  .filter-section input:focus {
+    outline: none;
+    border-color: #1a4d3e;
+    box-shadow: 0 0 0 4px rgba(26, 77, 62, 0.1);
+  }
+
   /* Enhanced Table Organization */
   .table-container-header {
     background: linear-gradient(135deg, #1a4d3e 0%, #0f3d2e 100%);
@@ -1003,14 +1421,16 @@
 
   @media (max-width: 576px) {
     .table-enhanced {
-      min-width: 800px; /* Still allow horizontal scroll on very small screens */
+      min-width: 1450px; /* Still allow horizontal scroll on very small screens */
     }
 
+    .table-enhanced .col-no { min-width: 60px; }
     .table-enhanced .col-agenda { min-width: 130px; }
-    .table-enhanced .col-spp { min-width: 140px; }
-    .table-enhanced .col-nilai { min-width: 120px; }
+    .table-enhanced .col-spp { min-width: 130px; }
+    .table-enhanced .col-nilai { min-width: 140px; }
+    .table-enhanced .col-uraian { min-width: 280px; }
     .table-enhanced .col-status { min-width: 140px; }
-    .table-enhanced .col-deadline { min-width: 160px; }
+    .table-enhanced .col-deadline { min-width: 130px; }
     .table-enhanced .col-action { min-width: 140px; }
   }
 
@@ -1032,22 +1452,60 @@
 
 <h2 style="margin-bottom: 20px; font-weight: 700;">{{ $title }}</h2>
 
-<!-- Search & Filter Box -->
+<!-- Enhanced Search & Filter Box -->
 <div class="search-box">
-  <div class="input-group" style="flex: 1; max-width: 400px;">
-    <span class="input-group-text">
-      <i class="fa-solid fa-magnifying-glass text-muted"></i>
-    </span>
-    <input type="text" class="form-control" placeholder="Cari nomor agenda atau SPP...">
+  <form action="{{ route('dokumensPerpajakan.index') }}" method="GET" class="d-flex align-items-center flex-wrap gap-3">
+    <div class="input-group" style="flex: 1; min-width: 300px;">
+      <span class="input-group-text">
+        <i class="fa-solid fa-magnifying-glass text-muted"></i>
+      </span>
+      <input type="text" class="form-control" name="search" placeholder="Cari nomor agenda, SPP, nilai rupiah, atau field lainnya..." value="{{ request('search') }}">
+    </div>
+    <div class="filter-section">
+      <select name="year" class="form-select">
+        <option value="">Semua Tahun</option>
+        <option value="2025" {{ request('year') == '2025' ? 'selected' : '' }}>2025</option>
+        <option value="2024" {{ request('year') == '2024' ? 'selected' : '' }}>2024</option>
+        <option value="2023" {{ request('year') == '2023' ? 'selected' : '' }}>2023</option>
+      </select>
+    </div>
+    <button type="submit" class="btn-filter">
+      <i class="fa-solid fa-filter me-2"></i>Filter
+    </button>
+  </form>
+</div>
+
+@if(isset($suggestions) && !empty($suggestions) && request('search'))
+<!-- Search Suggestions Alert -->
+<div class="alert alert-info alert-dismissible fade show suggestion-alert" role="alert" style="margin-bottom: 20px; border-left: 4px solid #0dcaf0; background-color: #e7f3ff;">
+  <div class="d-flex align-items-start">
+    <i class="fa-solid fa-lightbulb me-2 mt-1" style="color: #0dcaf0; font-size: 18px;"></i>
+    <div style="flex: 1;">
+      <strong style="color: #0a58ca;">Apakah yang Anda maksud?</strong>
+      <p class="mb-2 mt-2" style="color: #055160;">
+        Tidak ada hasil ditemukan untuk "<strong>{{ request('search') }}</strong>". Mungkin maksud Anda:
+      </p>
+      <div class="suggestion-buttons d-flex flex-wrap gap-2">
+        @foreach($suggestions as $suggestion)
+          <button type="button" class="btn btn-sm btn-outline-primary suggestion-btn" 
+                  data-suggestion="{{ $suggestion }}" 
+                  style="border-color: #0dcaf0; color: #0dcaf0;">
+            <i class="fa-solid fa-magnifying-glass me-1"></i>{{ $suggestion }}
+          </button>
+        @endforeach
+      </div>
+    </div>
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
   </div>
 </div>
+@endif
 
 <!-- Tabel Dokumen dengan Horizontal Scroll -->
 <div class="table-dokumen">
   <div class="table-container-header">
     <h3 class="table-container-title">
       <i class="fa-solid fa-file-lines"></i>
-      Daftar Dokumen Perpajakan
+      Daftar Dokumen Team Perpajakan
     </h3>
     <div class="table-container-stats">
       <div class="stat-item">
@@ -1072,6 +1530,7 @@
         <th class="col-agenda">Nomor Agenda</th>
         <th class="col-spp">Nomor SPP</th>
         <th class="col-nilai">Nilai Rupiah</th>
+        <th class="col-uraian">Uraian</th>
         <th class="col-status">Status</th>
         <th class="col-deadline">Deadline</th>
         <th class="col-action">Aksi</th>
@@ -1080,7 +1539,8 @@
     <tbody>
       @forelse($dokumens as $index => $dokumen)
         @php
-          $isLocked = is_null($dokumen->deadline_perpajakan_at);
+          // Use is_locked from controller (based on DokumenHelper logic)
+          $isLocked = $dokumen->is_locked ?? false;
           $isSentToAkutansi = $dokumen->status == 'sent_to_akutansi';
           $canSendToAkutansi = $dokumen->status_perpajakan == 'selesai'
             && $dokumen->status != 'sent_to_akutansi'
@@ -1103,16 +1563,16 @@
           }
           
           // Determine send button tooltip message
-          $sendButtonTooltip = 'Kirim ke Akutansi';
+          $sendButtonTooltip = 'Kirim ke Team Akutansi';
           if ($isSentToAkutansi) {
-            $sendButtonTooltip = 'Dokumen sudah dikirim ke Akutansi';
+            $sendButtonTooltip = 'Dokumen sudah dikirim ke Team Akutansi';
           } elseif (!$canSendToAkutansi) {
             if ($dokumen->status_perpajakan != 'selesai') {
-              $sendButtonTooltip = 'Status perpajakan harus "Selesai" terlebih dahulu sebelum dapat dikirim ke Akutansi';
+              $sendButtonTooltip = 'Status Team Perpajakan harus "Selesai" terlebih dahulu sebelum dapat dikirim ke Team Akutansi';
             } elseif ($dokumen->current_handler != 'perpajakan') {
               $sendButtonTooltip = 'Dokumen tidak sedang ditangani oleh perpajakan';
             } else {
-              $sendButtonTooltip = 'Status perpajakan harus "Selesai" terlebih dahulu sebelum dapat dikirim ke Akutansi';
+              $sendButtonTooltip = 'Status Team Perpajakan harus "Selesai" terlebih dahulu sebelum dapat dikirim ke Team Akutansi';
             }
           }
         @endphp
@@ -1125,9 +1585,10 @@
           </td>
           <td>{{ $dokumen->nomor_spp }}</td>
           <td><strong>{{ $dokumen->formatted_nilai_rupiah }}</strong></td>
+          <td style="text-align: left;">{{ Str::limit($dokumen->uraian_spp, 60) ?? '-' }}</td>
           <td style="text-align: center;">
             @if($dokumen->status == 'sent_to_akutansi')
-              <span class="badge-status badge-sent">Sudah terkirim ke Akutansi</span>
+              <span class="badge-status badge-sent">Sudah terkirim ke Team Akutansi</span>
             @elseif($dokumen->status_perpajakan == 'selesai')
               <span class="badge-status badge-selesai">✓ Selesai</span>
             @elseif($dokumen->status_perpajakan == 'sedang_diproses')
@@ -1141,13 +1602,25 @@
             @endif
           </td>
           <td>
-            @if($dokumen->deadline_perpajakan_at)
-              <small><strong>{{ $dokumen->deadline_perpajakan_at->format('d M Y, H:i') }}</strong></small>
-              @if($dokumen->deadline_perpajakan_note)
-                <br><small class="text-muted">{{ Str::limit($dokumen->deadline_perpajakan_note, 30) }}</small>
-              @endif
+            @if($dokumen->deadline_at)
+              <div class="deadline-card" data-deadline="{{ $dokumen->deadline_at->format('Y-m-d H:i:s') }}" data-sent="{{ $isSentToAkutansi ? 'true' : 'false' }}">
+                <div class="deadline-time">
+                  <i class="fa-solid fa-clock"></i>
+                  <span>{{ $dokumen->deadline_at->format('d M Y, H:i') }}</span>
+                </div>
+                <div class="deadline-indicator">
+                  <i class="fa-solid"></i>
+                  <span class="status-text">AMAN</span>
+                </div>
+                @if($dokumen->deadline_note)
+                  <div class="deadline-note">{{ Str::limit($dokumen->deadline_note, 50) }}</div>
+                @endif
+              </div>
             @else
-              <span class="text-muted">-</span>
+              <div class="no-deadline">
+                <i class="fa-solid fa-clock"></i>
+                <span>Belum ada deadline</span>
+              </div>
             @endif
           </td>
           <td onclick="event.stopPropagation()">
@@ -1161,14 +1634,16 @@
                       <span>Terkunci</span>
                     </button>
                   </div>
+                  @if($dokumen->can_set_deadline ?? false)
+                    <div class="action-row">
+                      <button type="button" class="btn-action btn-set-deadline" onclick="openSetDeadlineModal({{ $dokumen->id }})" title="Tetapkan Deadline">
+                        <i class="fa-solid fa-clock"></i>
+                        <span>Set Deadline</span>
+                      </button>
+                    </div>
+                  @endif
                   <div class="action-row">
-                    <button type="button" class="btn-action btn-set-deadline" onclick="openSetDeadlineModal({{ $dokumen->id }})" title="Tetapkan Deadline">
-                      <i class="fa-solid fa-clock"></i>
-                      <span>Set Deadline</span>
-                    </button>
-                  </div>
-                  <div class="action-row">
-                    <button type="button" class="btn-action btn-return" onclick="openReturnModal({{ $dokumen->id }})" title="Kembalikan ke IbuB">
+                    <button type="button" class="btn-action btn-return" onclick="openReturnModal({{ $dokumen->id }})" title="Kembalikan ke Ibu Yuni">
                       <i class="fa-solid fa-undo"></i>
                       <span>Return</span>
                     </button>
@@ -1200,7 +1675,7 @@
                     </a>
                   </div>
                   <div class="action-row">
-                    <button type="button" class="btn-action btn-return" onclick="openReturnModal({{ $dokumen->id }})" title="Kembalikan ke IbuB">
+                    <button type="button" class="btn-action btn-return" onclick="openReturnModal({{ $dokumen->id }})" title="Kembalikan ke Ibu Yuni">
                       <i class="fa-solid fa-undo"></i>
                       <span>Return</span>
                     </button>
@@ -1225,7 +1700,7 @@
           </td>
         </tr>
         <tr class="detail-row" id="detail-{{ $dokumen->id }}">
-          <td colspan="7">
+          <td colspan="8">
             <div class="detail-content" id="detail-content-{{ $dokumen->id }}">
               <div class="text-center p-4">
                 <i class="fa-solid fa-spinner fa-spin me-2"></i> Loading detail...
@@ -1235,7 +1710,7 @@
         </tr>
       @empty
         <tr>
-          <td colspan="7" class="text-center" style="padding: 40px;">
+          <td colspan="8" class="text-center" style="padding: 40px;">
             <i class="fa-solid fa-inbox" style="font-size: 48px; color: #ccc; margin-bottom: 16px;"></i>
             <p style="color: #999; font-size: 14px;">Belum ada dokumen</p>
           </td>
@@ -1243,8 +1718,76 @@
       @endforelse
     </tbody>
   </table>
-  </div>
 </div>
+</div>
+
+@if(isset($dokumens) && $dokumens->hasPages())
+<div class="pagination" style="margin-top: 24px; display: flex; justify-content: center; gap: 8px;">
+    {{-- Previous Page Link --}}
+    @if($dokumens->onFirstPage())
+        <button class="btn-chevron" disabled style="padding: 10px 16px; border: 2px solid rgba(26, 77, 62, 0.1); background: #e0e0e0; color: #9e9e9e; border-radius: 10px; cursor: not-allowed;">
+            <i class="fa-solid fa-chevron-left"></i>
+        </button>
+    @else
+        <a href="{{ $dokumens->appends(request()->query())->previousPageUrl() }}">
+            <button class="btn-chevron" style="padding: 10px 16px; border: 2px solid rgba(26, 77, 62, 0.1); background: linear-gradient(135deg, #6c757d 0%, #5a6268 100%); color: white; border-radius: 10px; cursor: pointer;">
+                <i class="fa-solid fa-chevron-left"></i>
+            </button>
+        </a>
+    @endif
+
+    {{-- Pagination Elements --}}
+    @if($dokumens->hasPages())
+        {{-- First page --}}
+        @if($dokumens->currentPage() > 3)
+            <a href="{{ $dokumens->appends(request()->query())->url(1) }}">
+                <button style="padding: 10px 16px; border: 2px solid rgba(26, 77, 62, 0.1); background-color: white; border-radius: 10px; cursor: pointer;">1</button>
+            </a>
+        @endif
+
+        {{-- Dots --}}
+        @if($dokumens->currentPage() > 4)
+            <button disabled style="padding: 10px 16px; border: none; background: transparent; color: #999;">...</button>
+        @endif
+
+        {{-- Range of pages --}}
+        @for($i = max(1, $dokumens->currentPage() - 2); $i <= min($dokumens->lastPage(), $dokumens->currentPage() + 2); $i++)
+            @if($dokumens->currentPage() == $i)
+                <button class="active" style="padding: 10px 16px; background: linear-gradient(135deg, #1a4d3e 0%, #0f3d2e 100%); color: white; border: none; border-radius: 10px; cursor: pointer;">{{ $i }}</button>
+            @else
+                <a href="{{ $dokumens->appends(request()->query())->url($i) }}">
+                    <button style="padding: 10px 16px; border: 2px solid rgba(26, 77, 62, 0.1); background-color: white; border-radius: 10px; cursor: pointer;">{{ $i }}</button>
+                </a>
+            @endif
+        @endfor
+
+        {{-- Dots --}}
+        @if($dokumens->currentPage() < $dokumens->lastPage() - 3)
+            <button disabled style="padding: 10px 16px; border: none; background: transparent; color: #999;">...</button>
+        @endif
+
+        {{-- Last page --}}
+        @if($dokumens->currentPage() < $dokumens->lastPage() - 2)
+            <a href="{{ $dokumens->appends(request()->query())->url($dokumens->lastPage()) }}">
+                <button style="padding: 10px 16px; border: 2px solid rgba(26, 77, 62, 0.1); background-color: white; border-radius: 10px; cursor: pointer;">{{ $dokumens->lastPage() }}</button>
+            </a>
+        @endif
+    @endif
+
+    {{-- Next Page Link --}}
+    @if($dokumens->hasMorePages())
+        <a href="{{ $dokumens->appends(request()->query())->nextPageUrl() }}">
+            <button class="btn-chevron" style="padding: 10px 16px; border: 2px solid rgba(26, 77, 62, 0.1); background: linear-gradient(135deg, #6c757d 0%, #5a6268 100%); color: white; border-radius: 10px; cursor: pointer;">
+                <i class="fa-solid fa-chevron-right"></i>
+            </button>
+        </a>
+    @else
+        <button class="btn-chevron" disabled style="padding: 10px 16px; border: 2px solid rgba(26, 77, 62, 0.1); background: #e0e0e0; color: #9e9e9e; border-radius: 10px; cursor: not-allowed;">
+            <i class="fa-solid fa-chevron-right"></i>
+        </button>
+    @endif
+</div>
+@endif
 
 <!-- Modal for Setting Deadline -->
 <div class="modal fade" id="setDeadlineModal" tabindex="-1">
@@ -1252,7 +1795,7 @@
     <div class="modal-content">
       <div class="modal-header" style="background: linear-gradient(135deg, #ffc107 0%, #ff8c00 100%); color: white;">
         <h5 class="modal-title">
-          <i class="fa-solid fa-clock me-2"></i>Tetapkan Deadline Perpajakan
+          <i class="fa-solid fa-clock me-2"></i>Tetapkan Deadline Team Perpajakan
         </h5>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
       </div>
@@ -1308,7 +1851,7 @@
     <div class="modal-content">
       <div class="modal-header" style="background: linear-gradient(135deg, #dc3545 0%, #c82333 100%); color: white;">
         <h5 class="modal-title">
-          <i class="fa-solid fa-undo me-2"></i>Kembalikan Dokumen ke IbuB
+          <i class="fa-solid fa-undo me-2"></i>Kembalikan Dokumen ke Ibu Yuni
         </h5>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
       </div>
@@ -1317,14 +1860,14 @@
 
         <div class="alert alert-warning border-0" style="background: linear-gradient(135deg, rgba(220, 53, 69, 0.1) 0%, rgba(200, 35, 51, 0.1) 100%); border-left: 4px solid #dc3545;">
           <i class="fa-solid fa-exclamation-triangle me-2"></i>
-          <strong>Perhatian:</strong> Dokumen akan dikembalikan ke IbuB dan akan muncul di halaman pengembalian dokumen. Pastikan Anda telah mengisi alasan pengembalian dengan jelas.
+          <strong>Perhatian:</strong> Dokumen akan dikembalikan ke Ibu Yuni dan akan muncul di halaman pengembalian dokumen. Pastikan Anda telah mengisi alasan pengembalian dengan jelas.
         </div>
 
         <div class="form-group mb-3">
           <label for="returnReason" class="form-label">
             <strong>Alasan Pengembalian <span class="text-danger">*</span></strong>
           </label>
-          <textarea class="form-control" id="returnReason" rows="4" placeholder="Jelaskan kenapa dokumen ini dikembalikan ke IbuB..." maxlength="500" required></textarea>
+          <textarea class="form-control" id="returnReason" rows="4" placeholder="Jelaskan kenapa dokumen ini dikembalikan ke Ibu Yuni..." maxlength="500" required></textarea>
           <div class="form-text">
             <small class="text-muted">Mohon isi alasan pengembalian secara detail dan jelas.</small><br>
             <span id="returnCharCount">0</span>/500 karakter
@@ -1335,8 +1878,8 @@
           <i class="fa-solid fa-info-circle me-2"></i>
           <strong>Informasi:</strong> Dokumen yang dikembalikan akan:
           <ul class="mb-0 mt-2">
-            <li>Muncul di halaman "Pengembalian Dokumen IbuB"</li>
-            <li>Muncul di halaman "Pengembalian Dokumen Perpajakan"</li>
+            <li>Muncul di halaman "Pengembalian Dokumen Ibu Yuni"</li>
+            <li>Muncul di halaman "Pengembalian Dokumen Team Perpajakan"</li>
             <li>Hilang dari daftar dokumen aktif perpajakan</li>
           </ul>
         </div>
@@ -1367,7 +1910,7 @@
         <div class="text-center mb-3">
           <i class="fa-solid fa-exclamation-triangle" style="font-size: 52px; color: #dc3545;"></i>
         </div>
-        <h5 class="fw-bold mb-3 text-center">Apakah Anda yakin ingin mengembalikan dokumen ini ke IbuB?</h5>
+        <h5 class="fw-bold mb-3 text-center">Apakah Anda yakin ingin mengembalikan dokumen ini ke Ibu Yuni?</h5>
         <div class="alert alert-light border" style="background-color: #f8f9fa;">
           <div class="d-flex align-items-start">
             <i class="fa-solid fa-info-circle me-2 mt-1" style="color: #dc3545;"></i>
@@ -1378,7 +1921,7 @@
           </div>
         </div>
         <p class="text-muted mb-0 text-center small">
-          Dokumen akan dikembalikan ke IbuB dan akan muncul di halaman pengembalian dokumen.
+          Dokumen akan dikembalikan ke Ibu Yuni dan akan muncul di halaman pengembalian dokumen.
         </p>
       </div>
       <div class="modal-footer border-0 justify-content-center gap-2">
@@ -1407,11 +1950,11 @@
         <div class="mb-3">
           <i class="fa-solid fa-check-circle" style="font-size: 52px; color: #28a745;"></i>
         </div>
-        <h5 class="fw-bold mb-3">Dokumen berhasil dikembalikan ke IbuB!</h5>
+        <h5 class="fw-bold mb-3">Dokumen berhasil dikembalikan ke Ibu Yuni!</h5>
         <p class="text-muted mb-0">
           Dokumen akan muncul di:
-          <br>• Halaman "Pengembalian Dokumen IbuB"
-          <br>• Halaman "Pengembalian Dokumen Perpajakan"
+          <br>• Halaman "Pengembalian Dokumen Ibu Yuni"
+          <br>• Halaman "Pengembalian Dokumen Team Perpajakan"
         </p>
       </div>
       <div class="modal-footer border-0 justify-content-center">
@@ -1457,7 +2000,7 @@
     <div class="modal-content">
       <div class="modal-header" style="background: linear-gradient(135deg, #1a4d3e 0%, #0f3d2e 100%); color: white;">
         <h5 class="modal-title" id="sendConfirmationModalLabel">
-          <i class="fa-solid fa-paper-plane me-2"></i>Konfirmasi Pengiriman ke Akutansi
+          <i class="fa-solid fa-paper-plane me-2"></i>Konfirmasi Pengiriman ke Team Akutansi
         </h5>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
@@ -1465,7 +2008,7 @@
         <input type="hidden" id="sendConfirmationDocId">
         <div class="alert alert-info border-0" id="sendConfirmationInfo">
           <i class="fa-solid fa-circle-info me-2"></i>
-          Pastikan seluruh data perpajakan sudah lengkap sebelum mengirim dokumen ke Akutansi.
+          Pastikan seluruh data Team Perpajakan sudah lengkap sebelum mengirim dokumen ke Team Akutansi.
         </div>
         <div class="alert alert-warning border-0 d-none" id="missingFieldsWrapper">
           <div class="d-flex align-items-start">
@@ -1503,9 +2046,9 @@
         <div class="mb-3">
           <i class="fa-solid fa-check-circle" style="font-size: 48px; color: #16a085;"></i>
         </div>
-        <h5 class="fw-bold mb-3">Dokumen berhasil dikirim ke Akutansi!</h5>
+        <h5 class="fw-bold mb-3">Dokumen berhasil dikirim ke Team Akutansi!</h5>
         <p class="text-muted mb-0">
-          Data perpajakan telah disertakan dan dokumen sekarang akan muncul di halaman Akutansi.
+          Data Team Perpajakan telah disertakan dan dokumen sekarang akan muncul di halaman Team Akutansi.
         </p>
       </div>
       <div class="modal-footer border-0 justify-content-center">
@@ -1734,6 +2277,146 @@ function confirmSetDeadline() {
   });
 }
 
+// Enhanced deadline system with color coding and late information for perpajakan
+function initializeDeadlines() {
+  const deadlineElements = document.querySelectorAll('.deadline-card');
+
+  deadlineElements.forEach(card => {
+    updateDeadlineCard(card);
+  });
+
+  // Update every 30 seconds for better responsiveness
+  setInterval(() => {
+    deadlineElements.forEach(card => {
+      updateDeadlineCard(card);
+    });
+  }, 30000); // Update every 30 seconds
+}
+
+function updateDeadlineCard(card) {
+  const deadlineStr = card.dataset.deadline;
+  if (!deadlineStr) return;
+
+  // Check if document is already sent
+  const isSent = card.dataset.sent === 'true';
+
+  const deadline = new Date(deadlineStr);
+  const now = new Date();
+  const diffMs = deadline - now;
+
+  // Remove existing status classes
+  card.classList.remove('deadline-safe', 'deadline-warning', 'deadline-danger', 'deadline-overdue');
+
+  // Find status indicator
+  const statusIndicator = card.querySelector('.deadline-indicator');
+  const statusText = card.querySelector('.status-text');
+  const statusIcon = statusIndicator.querySelector('i');
+
+  // Remove existing late info and time hints
+  const existingLateInfo = card.querySelector('.late-info');
+  const existingTimeHint = card.querySelector('div[style*="margin-top: 2px"]');
+  const existingProgress = card.querySelector('.deadline-progress');
+
+  if (existingLateInfo) existingLateInfo.remove();
+  if (existingTimeHint) existingTimeHint.remove();
+  if (existingProgress) existingProgress.remove();
+
+  if (diffMs < 0) {
+    // Overdue state
+    card.classList.add('deadline-overdue');
+
+    // Calculate how late
+    const diffHours = Math.abs(Math.floor(diffMs / (1000 * 60 * 60)));
+    const diffDays = Math.abs(Math.floor(diffMs / (1000 * 60 * 60 * 24)));
+
+    // Update status text
+    statusText.textContent = 'TERLAMBAT';
+    statusIcon.className = 'fa-solid fa-exclamation-triangle';
+    statusIndicator.className = 'deadline-indicator deadline-overdue';
+
+    // Only show late info if document is not sent
+    if (!isSent) {
+      // Create late info with enhanced styling
+      let lateText;
+      if (diffDays >= 1) {
+        lateText = `${diffDays} ${diffDays === 1 ? 'hari' : 'hari'} telat`;
+      } else if (diffHours >= 1) {
+        lateText = `${diffHours} ${diffHours === 1 ? 'jam' : 'jam'} telat`;
+      } else {
+        lateText = 'Baru saja terlambat';
+      }
+
+      const lateInfo = document.createElement('div');
+      lateInfo.className = 'late-info';
+      lateInfo.innerHTML = `
+        <i class="fa-solid fa-exclamation-triangle"></i>
+        <span class="late-text">${lateText}</span>
+      `;
+
+      card.appendChild(lateInfo);
+    }
+
+    // Add progress bar at bottom
+    const progressBar = document.createElement('div');
+    progressBar.className = 'deadline-progress';
+    card.appendChild(progressBar);
+
+  } else {
+    // Time remaining
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffMinutes = Math.floor(diffMs / (1000 * 60));
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+    // Simplified 3-status logic: >= 1 hari = hijau, < 1 hari = kuning, terlambat = merah
+    if (diffDays >= 1) {
+      // Safe (>= 1 day) - Green
+      card.classList.add('deadline-safe');
+      statusText.textContent = 'AMAN';
+      statusIcon.className = 'fa-solid fa-check-circle';
+      statusIndicator.className = 'deadline-indicator deadline-safe';
+
+      // Only add time remaining hint if document is not sent
+      if (!isSent) {
+        const timeHint = document.createElement('div');
+        timeHint.style.cssText = 'font-size: 8px; color: #065f46; margin-top: 2px; font-weight: 600;';
+        timeHint.textContent = `${diffDays} ${diffDays === 1 ? 'hari' : 'hari'} lagi`;
+        card.appendChild(timeHint);
+      }
+
+    } else if (diffHours >= 1 || diffMinutes >= 1) {
+      // Warning (< 1 day) - Yellow
+      card.classList.add('deadline-warning');
+      statusText.textContent = 'DEKAT';
+      statusIcon.className = 'fa-solid fa-exclamation-triangle';
+      statusIndicator.className = 'deadline-indicator deadline-warning';
+
+      // Only add time remaining hint if document is not sent
+      if (!isSent) {
+        const timeHint = document.createElement('div');
+        timeHint.style.cssText = 'font-size: 8px; color: #92400e; margin-top: 2px; font-weight: 700;';
+        if (diffHours >= 1) {
+          timeHint.textContent = `${diffHours} ${diffHours === 1 ? 'jam' : 'jam'} lagi`;
+        } else {
+          timeHint.textContent = `${diffMinutes} menit lagi`;
+          timeHint.style.animation = 'warning-shake 1s infinite';
+        }
+        card.appendChild(timeHint);
+      }
+
+    }
+
+    // Add progress bar
+    const progressBar = document.createElement('div');
+    progressBar.className = 'deadline-progress';
+    card.appendChild(progressBar);
+  }
+}
+
+// Initialize deadlines system
+document.addEventListener('DOMContentLoaded', function() {
+  initializeDeadlines();
+});
+
 // Character counter for deadline note
 document.addEventListener('DOMContentLoaded', function() {
   const deadlineNote = document.getElementById('deadlineNote');
@@ -1820,7 +2503,7 @@ function confirmReturn() {
   if (returnReason.length < 10) {
     showReturnValidationWarning(
       'Alasan Pengembalian Terlalu Singkat!',
-      'Alasan pengembalian minimal 10 karakter. Mohon jelaskan dengan lebih detail agar IbuB dapat memahami alasan pengembalian dokumen ini.'
+      'Alasan pengembalian minimal 10 karakter. Mohon jelaskan dengan lebih detail agar Ibu Yuni dapat memahami alasan pengembalian dokumen ini.'
     );
     return;
   }
@@ -1873,13 +2556,27 @@ function executeReturn() {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+      'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+      'Accept': 'application/json'
     },
     body: JSON.stringify({
       return_reason: returnReason
     })
   })
-  .then(response => response.json())
+  .then(async response => {
+    // Check if response is ok (status 200-299)
+    if (!response.ok) {
+      // Try to parse error response
+      let errorData;
+      try {
+        errorData = await response.json();
+      } catch (e) {
+        errorData = { message: `Server error: ${response.status} ${response.statusText}` };
+      }
+      throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+    }
+    return response.json();
+  })
   .then(data => {
     if (data.success) {
       // Show success modal
@@ -1892,12 +2589,12 @@ function executeReturn() {
         location.reload();
       }, { once: true });
     } else {
-      alert('❌ Gagal mengembalikan dokumen: ' + data.message);
+      alert('❌ Gagal mengembalikan dokumen: ' + (data.message || 'Terjadi kesalahan tidak diketahui'));
     }
   })
   .catch(error => {
-    console.error('Error:', error);
-    alert('❌ Terjadi kesalahan saat mengembalikan dokumen. Silakan coba lagi.');
+    console.error('Error returning document:', error);
+    alert('❌ Gagal mengembalikan dokumen: ' + (error.message || 'Terjadi kesalahan saat mengembalikan dokumen. Silakan coba lagi.'));
   });
 }
 
@@ -1991,7 +2688,7 @@ function performSendToAkutansi(docId) {
   })
   .catch(error => {
     console.error('Error:', error);
-    alert('❌ Terjadi kesalahan saat mengirim dokumen ke Akutansi. Silakan coba lagi.');
+    alert('❌ Terjadi kesalahan saat mengirim dokumen ke Team Akutansi. Silakan coba lagi.');
   })
   .finally(() => {
     confirmBtn.disabled = false;
@@ -2036,6 +2733,27 @@ document.addEventListener('DOMContentLoaded', function() {
       });
     }
   });
+});
+</script>
+
+<script>
+// Handle suggestion button clicks
+document.addEventListener('DOMContentLoaded', function() {
+    const suggestionButtons = document.querySelectorAll('.suggestion-btn');
+    
+    suggestionButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const suggestion = this.getAttribute('data-suggestion');
+            const searchInput = document.querySelector('input[name="search"]');
+            const form = searchInput.closest('form');
+            
+            // Set the suggestion value to search input
+            searchInput.value = suggestion;
+            
+            // Submit the form
+            form.submit();
+        });
+    });
 });
 </script>
 

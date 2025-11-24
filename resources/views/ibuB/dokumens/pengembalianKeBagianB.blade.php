@@ -545,11 +545,11 @@
               <td class="dari-column">
                 @if($dokumen->returned_from_perpajakan_at)
                   <span class="dept-badge perpajakan">
-                    <i class="fa-solid fa-building me-1"></i>Perpajakan
+                    <i class="fa-solid fa-building me-1"></i>Team Perpajakan
                   </span>
                 @elseif($dokumen->target_department == 'akutansi')
                   <span class="dept-badge akutansi">
-                    <i class="fa-solid fa-building me-1"></i>Akutansi
+                    <i class="fa-solid fa-building me-1"></i>Team Akutansi
                   </span>
                 @elseif($dokumen->target_department == 'pembayaran')
                   <span class="dept-badge pembayaran">
@@ -573,7 +573,7 @@
                     <span>Edit</span>
                   </a>
                   @if($dokumen->returned_from_perpajakan_at)
-                    <button type="button" class="btn-action btn-send" onclick="sendBackToPerpajakan({{ $dokumen->id }})" title="Kirim ke Perpajakan">
+                    <button type="button" class="btn-action btn-send" onclick="sendBackToPerpajakan({{ $dokumen->id }})" title="Kirim ke Team Perpajakan">
                       <i class="fa-solid fa-paper-plane"></i>
                       <span>Kirim</span>
                     </button>
@@ -685,7 +685,7 @@
     <div class="modal-content">
       <div class="modal-header" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white;">
         <h5 class="modal-title" id="sendBackToPerpajakanConfirmationModalLabel">
-          <i class="fa-solid fa-question-circle me-2"></i>Konfirmasi Pengiriman ke Perpajakan
+          <i class="fa-solid fa-question-circle me-2"></i>Konfirmasi Pengiriman ke Team Perpajakan
         </h5>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
@@ -693,9 +693,9 @@
         <div class="mb-3">
           <i class="fa-solid fa-question-circle" style="font-size: 52px; color: #28a745;"></i>
         </div>
-        <h5 class="fw-bold mb-3">Apakah Anda yakin dokumen ini sudah diperbaiki dan ingin dikirim ke Perpajakan?</h5>
+        <h5 class="fw-bold mb-3">Apakah Anda yakin dokumen ini sudah diperbaiki dan ingin dikirim ke Team Perpajakan?</h5>
         <p class="text-muted mb-0">
-          Dokumen akan dikirim ke Perpajakan dan akan muncul di daftar dokumen Perpajakan untuk proses verifikasi selanjutnya.
+          Dokumen akan dikirim ke Team Perpajakan dan akan muncul di daftar dokumen Team Perpajakan untuk proses verifikasi selanjutnya.
         </p>
       </div>
       <div class="modal-footer border-0 justify-content-center gap-2">
@@ -724,9 +724,9 @@
         <div class="mb-3">
           <i class="fa-solid fa-check-circle" style="font-size: 52px; color: #28a745;"></i>
         </div>
-        <h5 class="fw-bold mb-3">Dokumen berhasil dikirim ke Perpajakan!</h5>
+        <h5 class="fw-bold mb-3">Dokumen berhasil dikirim ke Team Perpajakan!</h5>
         <p class="text-muted mb-0">
-          Dokumen akan muncul di daftar dokumen Perpajakan untuk proses verifikasi selanjutnya.
+          Dokumen akan muncul di daftar dokumen Team Perpajakan untuk proses verifikasi selanjutnya.
         </p>
       </div>
       <div class="modal-footer border-0 justify-content-center">

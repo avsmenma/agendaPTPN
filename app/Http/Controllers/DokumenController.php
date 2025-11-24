@@ -12,6 +12,7 @@ use App\Models\DibayarKepada;
 use Illuminate\Support\Facades\DB;
 use Exception;
 use Carbon\Carbon;
+use App\Helpers\SearchHelper;
 
 class DokumenController extends Controller
 {
@@ -22,13 +23,33 @@ class DokumenController extends Controller
             ->where('created_by', 'ibuA')
             ->latest('tanggal_masuk');
 
-        // Search functionality
-        if ($request->has('search') && $request->search) {
-            $search = $request->search;
+        // Enhanced search functionality - search across all relevant fields
+        if ($request->has('search') && !empty($request->search) && trim((string)$request->search) !== '') {
+            $search = trim((string)$request->search);
             $query->where(function($q) use ($search) {
+                // Text fields
                 $q->where('nomor_agenda', 'like', '%' . $search . '%')
                   ->orWhere('nomor_spp', 'like', '%' . $search . '%')
-                  ->orWhere('uraian_spp', 'like', '%' . $search . '%');
+                  ->orWhere('uraian_spp', 'like', '%' . $search . '%')
+                  ->orWhere('nama_pengirim', 'like', '%' . $search . '%')
+                  ->orWhere('bagian', 'like', '%' . $search . '%')
+                  ->orWhere('kategori', 'like', '%' . $search . '%')
+                  ->orWhere('jenis_dokumen', 'like', '%' . $search . '%')
+                  ->orWhere('no_berita_acara', 'like', '%' . $search . '%')
+                  ->orWhere('no_spk', 'like', '%' . $search . '%')
+                  ->orWhere('nomor_mirror', 'like', '%' . $search . '%')
+                  ->orWhere('nomor_miro', 'like', '%' . $search . '%')
+                  ->orWhere('keterangan', 'like', '%' . $search . '%')
+                  ->orWhere('dibayar_kepada', 'like', '%' . $search . '%');
+                
+                // Search in nilai_rupiah - handle various formats
+                $numericSearch = preg_replace('/[^0-9]/', '', $search);
+                if (is_numeric($numericSearch) && $numericSearch > 0) {
+                    $q->orWhereRaw('CAST(nilai_rupiah AS CHAR) LIKE ?', ['%' . $numericSearch . '%']);
+                }
+            })
+            ->orWhereHas('dibayarKepadas', function($q) use ($search) {
+                $q->where('nama_penerima', 'like', '%' . $search . '%');
             });
         }
 
@@ -38,6 +59,13 @@ class DokumenController extends Controller
         }
 
         $dokumens = $query->paginate(10);
+        
+        // Get suggestions if no results found
+        $suggestions = [];
+        if ($request->has('search') && !empty($request->search) && trim((string)$request->search) !== '' && $dokumens->total() == 0) {
+            $searchTerm = trim((string)$request->search);
+            $suggestions = $this->getSearchSuggestions($searchTerm, $request->year);
+        }
 
         $data = array(
             "title" => "Daftar Dokumen",
@@ -48,6 +76,7 @@ class DokumenController extends Controller
             "menuDaftarDokumenDikembalikan" => "",
             "menuDashboard" => "",
             "dokumens" => $dokumens,
+            "suggestions" => $suggestions ?? [],
         );
 
         return view('IbuA.dokumens.daftarDokumen', $data);
@@ -121,7 +150,7 @@ class DokumenController extends Controller
             'step' => 'Dokumen Dibuat',
             'status' => 'completed',
             'time' => $dokumen->created_at ? $dokumen->created_at->format('d M Y H:i') : '',
-            'description' => 'Dokumen berhasil dibuat oleh IbuA',
+            'description' => 'Dokumen berhasil dibuat oleh Ibu Tarapul',
             'percentage' => 20
         ];
 
@@ -131,39 +160,39 @@ class DokumenController extends Controller
                 'step' => 'Menunggu Pengiriman',
                 'status' => 'current',
                 'time' => '',
-                'description' => 'Dokumen sedang disiapkan untuk dikirim ke IbuB',
+                'description' => 'Dokumen sedang disiapkan untuk dikirim ke Ibu Yuni',
                 'percentage' => 0
             ];
             $totalPercentage = 20;
         } elseif ($dokumen->status === 'sent_to_ibub') {
             $timeline[] = [
-                'step' => 'Terkirim ke IbuB',
+                'step' => 'Terkirim ke Ibu Yuni',
                 'status' => 'completed',
                 'time' => $dokumen->sent_to_ibub_at ? $dokumen->sent_to_ibub_at->format('d M Y H:i') : '',
-                'description' => 'Dokumen telah dikirim ke IbuB untuk diproses',
+                'description' => 'Dokumen telah dikirim ke Ibu Yuni untuk diproses',
                 'percentage' => 30
             ];
 
-            // Step 3: Processing by IbuB
+            // Step 3: Processing by Ibu Yuni
             $timeline[] = [
-                'step' => 'Sedang Diproses IbuB',
+                'step' => 'Sedang Diproses Ibu Yuni',
                 'status' => 'current',
                 'time' => '',
-                'description' => 'Dokumen sedang ditinjau dan diproses oleh IbuB',
+                'description' => 'Dokumen sedang ditinjau dan diproses oleh Ibu Yuni',
                 'percentage' => 0
             ];
             $totalPercentage = 50;
         } elseif ($dokumen->status === 'returned_to_ibua') {
             $timeline[] = [
-                'step' => 'Terkirim ke IbuB',
+                'step' => 'Terkirim ke Ibu Yuni',
                 'status' => 'completed',
                 'time' => $dokumen->sent_to_ibub_at ? $dokumen->sent_to_ibub_at->format('d M Y H:i') : '',
-                'description' => 'Dokumen telah dikirim ke IbuB untuk diproses',
+                'description' => 'Dokumen telah dikirim ke Ibu Yuni untuk diproses',
                 'percentage' => 30
             ];
 
             $timeline[] = [
-                'step' => 'Dikembalikan ke IbuA',
+                'step' => 'Dikembalikan ke Ibu Tarapul',
                 'status' => 'completed',
                 'time' => $dokumen->returned_to_ibua_at ? $dokumen->returned_to_ibua_at->format('d M Y H:i') : '',
                 'description' => $dokumen->alasan_pengembalian ? 'Dikembalikan: ' . $dokumen->alasan_pengembalian : 'Dokumen dikembalikan untuk perbaikan',
@@ -175,25 +204,25 @@ class DokumenController extends Controller
                 'step' => 'Menunggu Perbaikan',
                 'status' => 'current',
                 'time' => '',
-                'description' => 'Dokumen perlu diperbaiki sesuai masukan dari IbuB',
+                'description' => 'Dokumen perlu diperbaiki sesuai masukan dari Ibu Yuni',
                 'percentage' => 0
             ];
             $totalPercentage = 60;
         } elseif ($dokumen->status === 'sedang diproses') {
             $timeline[] = [
-                'step' => 'Terkirim ke IbuB',
+                'step' => 'Terkirim ke Ibu Yuni',
                 'status' => 'completed',
                 'time' => $dokumen->sent_to_ibub_at ? $dokumen->sent_to_ibub_at->format('d M Y H:i') : '',
-                'description' => 'Dokumen telah dikirim ke IbuB untuk diproses',
+                'description' => 'Dokumen telah dikirim ke Ibu Yuni untuk diproses',
                 'percentage' => 30
             ];
 
-            // Step 3: Processing by IbuB
+            // Step 3: Processing by Ibu Yuni
             $timeline[] = [
-                'step' => 'Sedang Diproses IbuB',
+                'step' => 'Sedang Diproses Ibu Yuni',
                 'status' => 'completed',
                 'time' => $dokumen->processed_at ? $dokumen->processed_at->format('d M Y H:i') : '',
-                'description' => 'Dokumen telah selesai diproses oleh IbuB',
+                'description' => 'Dokumen telah selesai diproses oleh Ibu Yuni',
                 'percentage' => 40
             ];
 
@@ -208,10 +237,10 @@ class DokumenController extends Controller
             $totalPercentage = 70;
         } elseif ($dokumen->status === 'selesai') {
             $timeline[] = [
-                'step' => 'Terkirim ke IbuB',
+                'step' => 'Terkirim ke Ibu Yuni',
                 'status' => 'completed',
                 'time' => $dokumen->sent_to_ibub_at ? $dokumen->sent_to_ibub_at->format('d M Y H:i') : '',
-                'description' => 'Dokumen telah dikirim ke IbuB untuk diproses',
+                'description' => 'Dokumen telah dikirim ke Ibu Yuni untuk diproses',
                 'percentage' => 30
             ];
 
@@ -543,12 +572,12 @@ class DokumenController extends Controller
 
             DB::beginTransaction();
 
-            // Langsung kirim ke IbuB tanpa persetujuan
+            // Langsung kirim ke Ibu Yuni tanpa persetujuan
             $dokumen->update([
                 'status' => 'sent_to_ibub',                   // Status langsung terkirim
-                'current_handler' => 'ibuB',                  // Pindah handler ke IbuB
+                'current_handler' => 'ibuB',                  // Pindah handler ke Ibu Yuni
                 'sent_to_ibub_at' => now(),                   // Timestamp pengiriman
-                'processed_at' => now(),                      // Timestamp proses oleh IbuB
+                'processed_at' => now(),                      // Timestamp proses oleh Ibu Yuni
             ]);
 
             $dokumen->refresh();
@@ -572,7 +601,7 @@ class DokumenController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Dokumen berhasil dikirim ke IbuB dan langsung masuk ke daftar dokumen.'
+                'message' => 'Dokumen berhasil dikirim ke Ibu Yuni dan langsung masuk ke daftar dokumen.'
             ]);
 
         } catch (Exception $e) {
@@ -583,5 +612,62 @@ class DokumenController extends Controller
                 'message' => 'Terjadi kesalahan saat mengirim dokumen.'
             ], 500);
         }
+    }
+
+    /**
+     * Get search suggestions when no results found
+     */
+    private function getSearchSuggestions($searchTerm, $year = null): array
+    {
+        $suggestions = [];
+        
+        // Get all unique values from relevant fields
+        $baseQuery = Dokumen::where('created_by', 'ibuA');
+        
+        if ($year) {
+            $baseQuery->where('tahun', $year);
+        }
+        
+        // Collect all searchable values
+        $allValues = collect();
+        
+        // Get from main fields
+        $fields = ['nomor_agenda', 'nomor_spp', 'uraian_spp', 'nama_pengirim', 'bagian', 
+                   'kategori', 'jenis_dokumen', 'no_berita_acara', 'no_spk', 
+                   'nomor_mirror', 'nomor_miro', 'keterangan', 'dibayar_kepada'];
+        
+        foreach ($fields as $field) {
+            $values = $baseQuery->whereNotNull($field)
+                ->distinct()
+                ->pluck($field)
+                ->filter()
+                ->toArray();
+            $allValues = $allValues->merge($values);
+        }
+        
+        // Get from dibayarKepadas relation
+        $dibayarKepadaValues = DibayarKepada::whereHas('dokumen', function($q) use ($year) {
+            $q->where('created_by', 'ibuA');
+            if ($year) {
+                $q->where('tahun', $year);
+            }
+        })
+        ->distinct()
+        ->pluck('nama_penerima')
+        ->filter()
+        ->toArray();
+        
+        $allValues = $allValues->merge($dibayarKepadaValues);
+        
+        // Remove duplicates and find suggestions
+        $uniqueValues = $allValues->unique()->values()->toArray();
+        $foundSuggestions = SearchHelper::findSuggestions($searchTerm, $uniqueValues, 60.0, 5);
+        
+        // Format suggestions
+        foreach ($foundSuggestions as $suggestion) {
+            $suggestions[] = $suggestion['value'];
+        }
+        
+        return $suggestions;
     }
 }

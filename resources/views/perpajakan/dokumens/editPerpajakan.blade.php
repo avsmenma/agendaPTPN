@@ -517,7 +517,7 @@
       <div class="accordion-header active" onclick="toggleAccordion(this)" style="background: linear-gradient(90deg, rgba(255, 193, 7, 0.1) 0%, transparent 100%); border-left-color: #ffc107;">
         <div class="accordion-title">
           <i class="fa-solid fa-file-invoice-dollar" style="color: #ffc107;"></i>
-          <span>Informasi Perpajakan</span>
+          <span>Informasi Team Perpajakan</span>
           <span style="background: #ffc107; color: white; padding: 4px 12px; border-radius: 20px; font-size: 10px; margin-left: 8px;">KHUSUS PERPAJAKAN</span>
         </div>
         <i class="fa-solid fa-chevron-down accordion-icon"></i>
@@ -542,7 +542,7 @@
             </div>
             <div class="form-group">
               <label for="status_perpajakan">
-                <i class="fa-solid fa-info-circle me-1"></i>Status Perpajakan
+                <i class="fa-solid fa-info-circle me-1"></i>Status Team Perpajakan
               </label>
               <select id="status_perpajakan" name="status_perpajakan">
                 <option value="">Pilih Status</option>

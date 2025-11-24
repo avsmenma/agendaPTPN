@@ -527,10 +527,10 @@
     <div class="filter-section">
       <select name="bagian" id="bagianFilter" class="chart-filter" onchange="document.getElementById('filterForm').submit()" style="padding: 10px 14px; border: 2px solid rgba(8, 62, 64, 0.1); border-radius: 10px; font-size: 13px; font-weight: 500; background: white; color: #083E40; cursor: pointer; min-width: 150px;">
         <option value="">Semua Bagian</option>
-        <option value="IbuA" {{ $selectedBagian == 'IbuA' ? 'selected' : '' }}>Ibu A</option>
-        <option value="IbuB" {{ $selectedBagian == 'IbuB' ? 'selected' : '' }}>Ibu B</option>
-        <option value="Perpajakan" {{ $selectedBagian == 'Perpajakan' ? 'selected' : '' }}>Perpajakan</option>
-        <option value="Akutansi" {{ $selectedBagian == 'Akutansi' ? 'selected' : '' }}>Akutansi</option>
+        <option value="IbuA" {{ $selectedBagian == 'IbuA' ? 'selected' : '' }}>Ibu Tarapul</option>
+        <option value="IbuB" {{ $selectedBagian == 'IbuB' ? 'selected' : '' }}>Ibu Yuni</option>
+        <option value="Perpajakan" {{ $selectedBagian == 'Perpajakan' ? 'selected' : '' }}>Team Perpajakan</option>
+        <option value="Akutansi" {{ $selectedBagian == 'Akutansi' ? 'selected' : '' }}>Team Akutansi</option>
       </select>
     </div>
     <button type="submit" class="btn-excel" style="margin-left: auto;">
@@ -664,7 +664,7 @@
 
                 @if($dokumen->jenis_pph || $dokumen->dpp_pph)
                   <!-- Section Perpajakan -->
-                  <div class="section-title">Informasi Perpajakan</div>
+                  <div class="section-title">Informasi Team Perpajakan</div>
                   <div class="detail-grid">
                     @if($dokumen->jenis_pph)
                       <div class="detail-item">

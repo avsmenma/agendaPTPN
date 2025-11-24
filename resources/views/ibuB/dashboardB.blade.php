@@ -264,8 +264,52 @@
     gap: 6px;
   }
 
-  .badge-selesai { background: linear-gradient(135deg, #40916c 0%, #2d6a4f 100%); color: white; box-shadow: 0 2px 8px rgba(64, 145, 108, 0.3); }
-  .badge-proses { background: linear-gradient(135deg, #2d6a4f 0%, #1b5e3f 100%); color: white; box-shadow: 0 2px 8px rgba(45, 106, 79, 0.3); }
+  /* Badge Status - Matching dokumensB standards */
+  .badge-status {
+    padding: 8px 20px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    border: none;
+    text-align: center;
+    min-width: 100px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: all 0.3s ease;
+    white-space: nowrap;
+  }
+
+  .badge-status.badge-selesai {
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    color: white;
+    box-shadow: 0 2px 8px rgba(40, 167, 69, 0.3);
+  }
+
+  .badge-status.badge-sent {
+    background: linear-gradient(135deg, #0401ccff 0%, #020daaff 100%);
+    color: white;
+    box-shadow: 0 2px 8px rgba(4, 1, 204, 0.3);
+  }
+
+  .badge-status.badge-proses {
+    background: linear-gradient(135deg, #083E40 0%, #0a4f52 100%);
+    color: white;
+    box-shadow: 0 2px 8px rgba(8, 62, 64, 0.3);
+  }
+
+  .badge-status.badge-dikembalikan {
+    background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+    color: white;
+    box-shadow: 0 2px 8px rgba(220, 53, 69, 0.3);
+  }
+
+  /* Legacy badge classes for compatibility */
+  .badge-selesai { background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; box-shadow: 0 2px 8px rgba(40, 167, 69, 0.3); }
+  .badge-proses { background: linear-gradient(135deg, #083E40 0%, #0a4f52 100%); color: white; box-shadow: 0 2px 8px rgba(8, 62, 64, 0.3); }
   .badge-approved { background: linear-gradient(135deg, #52b788 0%, #40916c 100%); color: white; box-shadow: 0 2px 8px rgba(82, 183, 136, 0.3); }
   .badge-rejected { background: linear-gradient(135deg, #74c69d 0%, #52b788 100%); color: white; box-shadow: 0 2px 8px rgba(116, 198, 157, 0.3); }
   .badge-pending { background: linear-gradient(135deg, #95d5b2 0%, #74c69d 100%); color: #1a4d3e; box-shadow: 0 2px 8px rgba(149, 213, 178, 0.3); }
@@ -275,9 +319,30 @@
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   }
 
-  /* Action Button */
+  /* Green Table Header Theme */
+  .table-header-green th {
+    background: linear-gradient(135deg, #1a4d3e 0%, #0f3d2e 100%) !important;
+    color: white !important;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-size: 12px;
+    border: none !important;
+    padding: 15px 12px;
+    text-align: center;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    box-shadow: 0 2px 10px rgba(26, 77, 62, 0.3);
+  }
+
+  .table-header-green th:hover {
+    background: linear-gradient(135deg, #0f3d2e 0%, #0a2e1f 100%) !important;
+  }
+
+  /* Action Button - Detail View */
   .btn-view {
-    padding: 10px 14px;
+    padding: 10px 16px;
     border: none;
     border-radius: 10px;
     cursor: pointer;
@@ -285,19 +350,27 @@
     transition: all 0.3s ease;
     font-weight: 600;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    background: linear-gradient(135deg, #1a4d3e 0%, #0f3d2e 100%);
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
     color: white;
     text-decoration: none;
     display: inline-flex;
     align-items: center;
     gap: 6px;
+    min-width: 90px;
+    justify-content: center;
   }
 
   .btn-view:hover {
-    background: linear-gradient(135deg, #0f3d2e 0%, #0a2e1f 100%);
+    background: linear-gradient(135deg, #20c997 0%, #1e9e7e 100%);
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(26, 77, 62, 0.3);
+    box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
     color: white;
+    text-decoration: none;
+  }
+
+  .btn-view:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(40, 167, 69, 0.3);
   }
 
   /* Responsive Design */
@@ -443,7 +516,7 @@
         <div class="stat-content">
           <div class="stat-title">Total Dokumen Approved</div>
           <div class="stat-value">{{ number_format($totalDokumenApproved ?? 0, 0, ',', '.') }}</div>
-          <div class="stat-description">Disetujui IbuB</div>
+          <div class="stat-description">Disetujui Ibu Yuni</div>
         </div>
       </div>
     </div>
@@ -459,7 +532,7 @@
         <div class="stat-content">
           <div class="stat-title">Total Dokumen Rejected</div>
           <div class="stat-value">{{ number_format($totalDokumenRejected ?? 0, 0, ',', '.') }}</div>
-          <div class="stat-description">Dikembalikan ke IbuA</div>
+          <div class="stat-description">Dikembalikan ke Ibu Tarapul</div>
         </div>
       </div>
     </div>
@@ -517,7 +590,7 @@
   <div class="table-responsive">
     <table class="table table-hover align-middle mb-0">
       <thead>
-        <tr class="table table-dark">
+        <tr class="table-header-green">
           <th>No</th>
           <th>Nomor Agenda</th>
           <th>Tanggal Masuk</th>
@@ -543,41 +616,29 @@
           </td>
           <td>
             @if($dokumen->status == 'selesai' || $dokumen->status == 'approved_ibub')
-              <span class="badge badge-approved">
-                <i class="fas fa-check-circle"></i>
-                {{ $dokumen->status == 'approved_ibub' ? 'Approved' : 'Selesai' }}
-              </span>
+              <span class="badge-status badge-selesai">✓ {{ $dokumen->status == 'approved_ibub' ? 'Approved' : 'Selesai' }}</span>
             @elseif($dokumen->status == 'rejected_ibub')
-              <span class="badge badge-rejected">
-                <i class="fas fa-times-circle"></i>
-                Rejected
-              </span>
-            @elseif(in_array($dokumen->status, ['sent_to_ibub', 'sedang diproses']))
-              <span class="badge badge-proses">
-                <i class="fas fa-clock"></i>
-                {{ $dokumen->status == 'sent_to_ibub' ? 'Menunggu Review' : 'Diproses' }}
-              </span>
+              <span class="badge-status badge-dikembalikan">Rejected</span>
+            @elseif($dokumen->status == 'sent_to_perpajakan')
+              <span class="badge-status badge-sent">📤 Terkirim ke Perpajakan</span>
+            @elseif($dokumen->status == 'sent_to_akutansi')
+              <span class="badge-status badge-sent">📤 Terkirim ke Akutansi</span>
+            @elseif($dokumen->status == 'sent_to_ibub')
+              <span class="badge-status badge-proses">⏳ Menunggu Review</span>
+            @elseif($dokumen->status == 'sedang diproses')
+              <span class="badge-status badge-proses">⏳ Sedang Diproses</span>
             @elseif($dokumen->status == 'returned_to_bidang')
-              <span class="badge badge-pending">
-                <i class="fas fa-building"></i>
-                Kembali ke Bidang
-              </span>
+              <span class="badge-status badge-dikembalikan">Kembali ke Bidang</span>
             @elseif($dokumen->status == 'returned_to_department')
-              <span class="badge badge-pending">
-                <i class="fas fa-reply"></i>
-                Dari Bagian
-              </span>
+              <span class="badge-status badge-dikembalikan">Dikembalikan</span>
             @else
-              <span class="badge badge-pending">
-                <i class="fas fa-clock"></i>
-                {{ ucfirst($dokumen->status) }}
-              </span>
+              <span class="badge-status badge-proses">⏳ {{ ucfirst($dokumen->status) }}</span>
             @endif
           </td>
           <td>
-            <a href="{{ route('dokumensB.edit', $dokumen->id) }}" class="btn-view" title="Lihat Detail">
+            <a href="{{ url('/dokumensB') }}" class="btn-view" title="Lihat Detail">
               <i class="fa-solid fa-eye"></i>
-              Lihat
+              Lihat Detail
             </a>
           </td>
         </tr>

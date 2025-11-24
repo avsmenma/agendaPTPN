@@ -541,7 +541,7 @@
     <div class="col-xl-3 col-md-6 mb-4 px-xl-2 " style="width :30%;" >
         <div class="card-info">
             <div class="flex-grow-1">
-                <div class="card-title-small">Dikembalikan ke IbuA</div>
+                <div class="card-title-small">Dikembalikan ke Ibu Tarapul</div>
                 <div class="card-number">{{ number_format($totalDikembalikan ?? 0, 0, ',', '.') }}</div>
             </div>
             <div class="icon-box ms-3">
@@ -719,8 +719,8 @@
         <tr>
           <td colspan="7" class="text-center" style="padding: 40px;">
             <i class="fa-solid fa-undo" style="font-size: 48px; color: #ccc; margin-bottom: 16px;"></i>
-            <p style="color: #999; font-size: 14px;">Belum ada dokumen yang dikembalikan ke IbuA</p>
-            <p style="color: #bbb; font-size: 12px;">Dokumen yang dikembalikan ke IbuA akan tampil di sini</p>
+            <p style="color: #999; font-size: 14px;">Belum ada dokumen yang dikembalikan ke Ibu Tarapul</p>
+            <p style="color: #bbb; font-size: 12px;">Dokumen yang dikembalikan ke Ibu Tarapul akan tampil di sini</p>
           </td>
         </tr>
         @endforelse

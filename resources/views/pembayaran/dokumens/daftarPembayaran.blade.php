@@ -537,7 +537,6 @@
           <th class="col-nilai">Nilai Rupiah</th>
           <th class="col-tanggal-spp">Tanggal SPP</th>
           <th class="col-uraian">Uraian</th>
-          <th class="col-deadline">Deadline</th>
           <th class="col-status">Status</th>
           <th class="col-action">Aksi</th>
         </tr>
@@ -554,13 +553,10 @@
           // Cek apakah dokumen sudah terkirim ke pembayaran (bisa diedit)
           $isSentToPembayaran = $dokumen->status === 'sent_to_pembayaran' || $dokumen->current_handler === 'pembayaran';
           
-          // Dokumen bisa diedit jika sudah terkirim ke pembayaran
-          $canEdit = $isSentToPembayaran;
-          
-          // Dokumen terkunci jika sudah di pembayaran tapi belum ada deadline
-          $isLocked = $dokumen->current_handler === 'pembayaran'
-            && $dokumen->status === 'sent_to_pembayaran'
-            && is_null($dokumen->deadline_pembayaran_at);
+          // Use DokumenHelper to check lock status
+          $isLocked = \App\Helpers\DokumenHelper::isDocumentLocked($dokumen);
+          $canSetDeadline = \App\Helpers\DokumenHelper::canSetDeadline($dokumen)['can_set'];
+          $canEdit = \App\Helpers\DokumenHelper::canEditDocument($dokumen, 'pembayaran');
         @endphp
         <tr class="main-row {{ $isLocked ? 'locked-row' : '' }}" onclick="toggleDetail({{ $dokumen->id }})" title="Klik untuk melihat detail lengkap dokumen">
             <td style="text-align: center;">{{ $index + 1 }}</td>
@@ -574,25 +570,6 @@
             <td><strong>{{ $dokumen->formatted_nilai_rupiah }}</strong></td>
             <td>{{ $dokumen->tanggal_spp ? $dokumen->tanggal_spp->format('d/m/Y') : '-' }}</td>
             <td>{{ Str::limit($dokumen->uraian_spp, 60) ?? '-' }}</td>
-            <td>
-              @if($dokumen->deadline_pembayaran_at)
-                @php
-                  $deadlineDate = $dokumen->deadline_pembayaran_at;
-                  $isOverdue = $deadlineDate->isPast();
-                  $daysLeft = $deadlineDate->diffInDays(\Carbon\Carbon::now());
-                @endphp
-                <small class="{{ $isOverdue ? 'deadline-soon' : 'deadline-normal' }}">
-                  <strong>{{ $deadlineDate->format('d M Y') }}</strong>
-                  @if($isOverdue)
-                    <br><span class="text-danger">Terlambat {{ $daysLeft }} hari</span>
-                  @elseif($daysLeft <= 3)
-                    <br><span class="text-warning">{{ $daysLeft }} hari lagi</span>
-                  @endif
-                </small>
-              @else
-                <span class="text-muted">-</span>
-              @endif
-            </td>
             <td style="text-align: center;">
               @if($dokumen->status_pembayaran == 'sudah_dibayar')
                 <span class="badge-status badge-selesai">✓ Sudah Dibayar</span>
@@ -618,12 +595,14 @@
                   <button class="btn-action btn-locked" disabled title="Dokumen terkunci. Tetapkan deadline untuk membuka.">
                     <i class="fa-solid fa-lock"></i>
                   </button>
-                  <button class="btn-action btn-action" style="background: linear-gradient(135deg, #ffc107 0%, #ff8c00 100%);" onclick="openSetDeadlineModal({{ $dokumen->id }})" title="Tetapkan Deadline">
-                    <i class="fa-solid fa-clock"></i>
-                  </button>
-                @elseif($canEdit)
-                  {{-- Dokumen sudah terkirim ke pembayaran - bisa diedit --}}
-                  <button class="btn-action btn-edit" onclick="editDocument({{ $dokumen->id }})" title="Edit">
+                  @if($canSetDeadline)
+                    <button class="btn-action btn-action" style="background: linear-gradient(135deg, #ffc107 0%, #ff8c00 100%);" onclick="openSetDeadlineModal({{ $dokumen->id }})" title="Tetapkan Deadline">
+                      <i class="fa-solid fa-clock"></i>
+                    </button>
+                  @endif
+                @elseif($canEdit && !$isLocked)
+                  {{-- Dokumen sudah terkirim ke pembayaran dan tidak terkunci - bisa diedit --}}
+                  <button class="btn-action btn-edit" onclick="editDocument({{ $dokumen->id }})" title="Ubah Status">
                     <i class="fas fa-edit"></i>
                   </button>
                   @if($dokumen->status_pembayaran != 'sudah_dibayar')
@@ -641,7 +620,7 @@
             </td>
           </tr>
           <tr class="detail-row" id="detail-{{ $dokumen->id }}">
-            <td colspan="10">
+            <td colspan="9">
               <div class="detail-content" id="detail-content-{{ $dokumen->id }}">
                 <div class="text-center p-4">
                   <i class="fa-solid fa-spinner fa-spin me-2"></i> Loading detail...
@@ -651,7 +630,7 @@
           </tr>
         @empty
           <tr>
-            <td colspan="10" class="text-center py-5">
+            <td colspan="9" class="text-center py-5">
               <i class="fa-solid fa-inbox fa-3x text-muted mb-3"></i>
               <p class="text-muted">Tidak ada data dokumen yang tersedia.</p>
             </td>
@@ -659,6 +638,81 @@
         @endforelse
       </tbody>
     </table>
+  </div>
+</div>
+
+<!-- Modal Edit Status -->
+<div class="modal fade" id="editStatusModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header" style="background: linear-gradient(135deg, #17a2b8 0%, #138496 100%); color: white;">
+        <h5 class="modal-title">
+          <i class="fas fa-edit me-2"></i>Ubah Status Pembayaran
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="editStatusDocId">
+        
+        <div class="alert alert-info border-0" style="background: linear-gradient(135deg, rgba(23, 162, 184, 0.12) 0%, rgba(19, 132, 150, 0.12) 100%); border-left: 4px solid #17a2b8;">
+          <i class="fa-solid fa-info-circle me-2"></i>
+          Pilih status pembayaran untuk dokumen ini.
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label fw-bold">Status Pembayaran*</label>
+          <select class="form-select" id="statusPembayaran" required>
+            <option value="">Pilih status</option>
+            <option value="siap_dibayar">Siap Dibayar</option>
+            <option value="sudah_dibayar">Sudah Dibayar</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer border-0">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+          <i class="fa-solid fa-times me-2"></i>Batal
+        </button>
+        <button type="button" class="btn btn-primary" onclick="confirmUpdateStatus()">
+          <i class="fa-solid fa-check me-2"></i>Simpan
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Upload Bukti Pembayaran -->
+<div class="modal fade" id="uploadBuktiModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header" style="background: linear-gradient(135deg, #28a745 0%, #34ce57 100%); color: white;">
+        <h5 class="modal-title">
+          <i class="fa-solid fa-upload me-2"></i>Upload Link Bukti Pembayaran
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="uploadBuktiDocId">
+        
+        <div class="alert alert-info border-0" style="background: linear-gradient(135deg, rgba(40, 167, 69, 0.12) 0%, rgba(52, 206, 87, 0.12) 100%); border-left: 4px solid #28a745;">
+          <i class="fa-solid fa-info-circle me-2"></i>
+          Masukkan link bukti pembayaran (contoh: link Google Drive, Dropbox, atau URL lainnya).
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label fw-bold">Link Bukti Pembayaran*</label>
+          <input type="url" class="form-control" id="linkBuktiPembayaran" placeholder="https://drive.google.com/..." required>
+          <small class="text-muted">Pastikan link dapat diakses dan tidak memerlukan izin khusus.</small>
+        </div>
+      </div>
+      <div class="modal-footer border-0">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+          <i class="fa-solid fa-times me-2"></i>Batal
+        </button>
+        <button type="button" class="btn btn-success" onclick="confirmUploadBukti()">
+          <i class="fa-solid fa-check me-2"></i>Simpan
+        </button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -779,11 +833,134 @@ function loadDocumentDetail(docId) {
 }
 
 function editDocument(id) {
-  window.location.href = `/dokumensPembayaran/${id}/edit`;
+  document.getElementById('editStatusDocId').value = id;
+  // Reset form
+  document.getElementById('statusPembayaran').value = '';
+  const modal = new bootstrap.Modal(document.getElementById('editStatusModal'));
+  modal.show();
 }
 
 function uploadBukti(id) {
-  window.location.href = `/dokumensPembayaran/${id}/edit`;
+  document.getElementById('uploadBuktiDocId').value = id;
+  document.getElementById('linkBuktiPembayaran').value = '';
+  const modal = new bootstrap.Modal(document.getElementById('uploadBuktiModal'));
+  modal.show();
+}
+
+function confirmUpdateStatus() {
+  const docId = document.getElementById('editStatusDocId').value;
+  const statusPembayaran = document.getElementById('statusPembayaran').value;
+
+  if (!statusPembayaran) {
+    alert('Pilih status pembayaran terlebih dahulu!');
+    return;
+  }
+
+  const submitBtn = document.querySelector('#editStatusModal .btn-primary');
+  const originalHTML = submitBtn.innerHTML;
+  submitBtn.disabled = true;
+  submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-2"></i>Menyimpan...';
+
+  fetch(`/dokumensPembayaran/${docId}/update-status`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+      'Accept': 'application/json'
+    },
+    body: JSON.stringify({
+      status_pembayaran: statusPembayaran
+    })
+  })
+  .then(async response => {
+    const contentType = response.headers.get('content-type');
+    if (contentType && contentType.includes('application/json')) {
+      return response.json();
+    } else {
+      const text = await response.text();
+      throw new Error(`Server returned ${response.status}: ${text.substring(0, 100)}`);
+    }
+  })
+  .then(data => {
+    if (data.success) {
+      const modal = bootstrap.Modal.getInstance(document.getElementById('editStatusModal'));
+      modal.hide();
+      alert('Status pembayaran berhasil diperbarui!');
+      location.reload();
+    } else {
+      alert(data.message || 'Gagal memperbarui status pembayaran.');
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = originalHTML;
+    }
+  })
+  .catch(error => {
+    console.error('Error:', error);
+    alert('Terjadi kesalahan saat memperbarui status pembayaran: ' + (error.message || 'Unknown error'));
+    submitBtn.disabled = false;
+    submitBtn.innerHTML = originalHTML;
+  });
+}
+
+function confirmUploadBukti() {
+  const docId = document.getElementById('uploadBuktiDocId').value;
+  const linkBukti = document.getElementById('linkBuktiPembayaran').value.trim();
+
+  if (!linkBukti) {
+    alert('Masukkan link bukti pembayaran terlebih dahulu!');
+    return;
+  }
+
+  // Basic URL validation
+  try {
+    new URL(linkBukti);
+  } catch (e) {
+    alert('Format link tidak valid. Pastikan link dimulai dengan http:// atau https://');
+    return;
+  }
+
+  const submitBtn = document.querySelector('#uploadBuktiModal .btn-success');
+  const originalHTML = submitBtn.innerHTML;
+  submitBtn.disabled = true;
+  submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-2"></i>Menyimpan...';
+
+  fetch(`/dokumensPembayaran/${docId}/upload-bukti`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+      'Accept': 'application/json'
+    },
+    body: JSON.stringify({
+      link_bukti_pembayaran: linkBukti
+    })
+  })
+  .then(async response => {
+    const contentType = response.headers.get('content-type');
+    if (contentType && contentType.includes('application/json')) {
+      return response.json();
+    } else {
+      const text = await response.text();
+      throw new Error(`Server returned ${response.status}: ${text.substring(0, 100)}`);
+    }
+  })
+  .then(data => {
+    if (data.success) {
+      const modal = bootstrap.Modal.getInstance(document.getElementById('uploadBuktiModal'));
+      modal.hide();
+      alert('Link bukti pembayaran berhasil disimpan!');
+      location.reload();
+    } else {
+      alert(data.message || 'Gagal menyimpan link bukti pembayaran.');
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = originalHTML;
+    }
+  })
+  .catch(error => {
+    console.error('Error:', error);
+    alert('Terjadi kesalahan saat menyimpan link bukti pembayaran: ' + (error.message || 'Unknown error'));
+    submitBtn.disabled = false;
+    submitBtn.innerHTML = originalHTML;
+  });
 }
 
 // Search functionality
@@ -844,14 +1021,23 @@ function confirmSetDeadline() {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+      'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+      'Accept': 'application/json'
     },
     body: JSON.stringify({
       deadline_days: parseInt(deadlineDays, 10),
       deadline_note: deadlineNote
     })
   })
-  .then(response => response.json())
+  .then(async response => {
+    const contentType = response.headers.get('content-type');
+    if (contentType && contentType.includes('application/json')) {
+      return response.json();
+    } else {
+      const text = await response.text();
+      throw new Error(`Server returned ${response.status}: ${text.substring(0, 100)}`);
+    }
+  })
   .then(data => {
     if (data.success) {
       const modal = bootstrap.Modal.getInstance(document.getElementById('setDeadlineModal'));
@@ -866,7 +1052,7 @@ function confirmSetDeadline() {
   })
   .catch(error => {
     console.error('Error:', error);
-    alert('Terjadi kesalahan saat menetapkan deadline.');
+    alert('Terjadi kesalahan saat menetapkan deadline: ' + (error.message || 'Unknown error'));
     submitBtn.disabled = false;
     submitBtn.innerHTML = originalHTML;
   });

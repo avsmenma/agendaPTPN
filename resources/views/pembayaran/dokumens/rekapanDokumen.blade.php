@@ -687,10 +687,10 @@
         <span class="text-muted">Total {{ $rekapanByVendor->count() }} vendor | {{ $statistics['total_documents'] }} dokumen</span>
       </div>
       <div class="export-buttons no-print">
-        <button type="button" class="btn-export btn-export-excel" onclick="exportToExcel()">
+        <button type="button" class="btn-export btn-export-excel" onclick="exportRekapanTableToExcel()">
           <i class="fa-solid fa-file-excel"></i> Export Excel
         </button>
-        <button type="button" class="btn-export btn-export-pdf" onclick="exportToPDF()">
+        <button type="button" class="btn-export btn-export-pdf" onclick="exportRekapanTableToPDF()">
           <i class="fa-solid fa-file-pdf"></i> Export PDF
         </button>
       </div>
@@ -941,10 +941,20 @@
   <!-- Normal Table -->
   <div class="table-container">
     <div class="table-header">
-      <h5>
-        <i class="fa-solid fa-list me-2"></i>
-        Daftar Dokumen
-      </h5>
+      <div>
+        <h5>
+          <i class="fa-solid fa-list me-2"></i>
+          Daftar Dokumen
+        </h5>
+      </div>
+      <div class="export-buttons no-print">
+        <button type="button" class="btn-export btn-export-excel" onclick="exportNormalTableToExcel()">
+          <i class="fa-solid fa-file-excel"></i> Export Excel
+        </button>
+        <button type="button" class="btn-export btn-export-pdf" onclick="exportNormalTableToPDF()">
+          <i class="fa-solid fa-file-pdf"></i> Export PDF
+        </button>
+      </div>
     </div>
 
     <div class="table-responsive">
@@ -1079,8 +1089,20 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
 <script>
-// Export to Excel Function with Styling
+// Export to Excel Function with Styling (for rekapan table - now using server-side)
 async function exportToExcel() {
+  // This function is now replaced by exportRekapanTableToExcel
+  exportRekapanTableToExcel();
+}
+
+// Legacy function - kept for backward compatibility
+async function exportToPDF() {
+  // This function is now replaced by exportRekapanTableToPDF
+  exportRekapanTableToPDF();
+}
+
+// Old client-side export function (deprecated - now using server-side)
+async function exportToExcelOld() {
   const table = document.getElementById('rekapanTable');
   if (!table) {
     alert('Tabel tidak ditemukan!');
@@ -1487,6 +1509,136 @@ document.addEventListener('DOMContentLoaded', function() {
   // Initialize badges on page load
   updateOrderBadges();
 });
+
+// Export Normal Table to Excel
+async function exportNormalTableToExcel() {
+  const btn = event?.target?.closest('.btn-export-excel') || document.querySelector('.table-container:not([id*="rekapan"]) .btn-export-excel');
+  if (!btn) return;
+  
+  const originalText = btn.innerHTML;
+  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Processing...';
+  btn.disabled = true;
+
+  try {
+    // Get all filter parameters
+    const params = new URLSearchParams();
+    params.append('status_pembayaran', '{{ $selectedStatus ?? "" }}');
+    params.append('year', '{{ $selectedYear ?? "" }}');
+    params.append('month', '{{ $selectedMonth ?? "" }}');
+    params.append('search', '{{ $search ?? "" }}');
+    params.append('export', 'excel');
+    params.append('mode', 'normal');
+
+    // Redirect to export route
+    window.location.href = '{{ route("pembayaran.rekapan.export") }}?' + params.toString();
+  } catch (error) {
+    console.error('Export error:', error);
+    alert('Terjadi kesalahan saat export: ' + error.message);
+    btn.innerHTML = originalText;
+    btn.disabled = false;
+  }
+}
+
+// Export Normal Table to PDF
+function exportNormalTableToPDF() {
+  const btn = event?.target?.closest('.btn-export-pdf') || document.querySelector('.table-container:not([id*="rekapan"]) .btn-export-pdf');
+  if (!btn) return;
+  
+  const originalText = btn.innerHTML;
+  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Processing...';
+  btn.disabled = true;
+
+  try {
+    // Get all filter parameters
+    const params = new URLSearchParams();
+    params.append('status_pembayaran', '{{ $selectedStatus ?? "" }}');
+    params.append('year', '{{ $selectedYear ?? "" }}');
+    params.append('month', '{{ $selectedMonth ?? "" }}');
+    params.append('search', '{{ $search ?? "" }}');
+    params.append('export', 'pdf');
+    params.append('mode', 'normal');
+
+    // Redirect to export route
+    window.location.href = '{{ route("pembayaran.rekapan.export") }}?' + params.toString();
+  } catch (error) {
+    console.error('Export error:', error);
+    alert('Terjadi kesalahan saat export: ' + error.message);
+    btn.innerHTML = originalText;
+    btn.disabled = false;
+  }
+}
+
+// Export Rekapan Table to Excel
+async function exportRekapanTableToExcel() {
+  const btn = event?.target?.closest('.btn-export-excel') || document.querySelector('#rekapanTable').closest('.table-container').querySelector('.btn-export-excel');
+  if (!btn) return;
+  
+  const originalText = btn.innerHTML;
+  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Processing...';
+  btn.disabled = true;
+
+  try {
+    // Get all filter parameters
+    const params = new URLSearchParams();
+    params.append('status_pembayaran', '{{ $selectedStatus ?? "" }}');
+    params.append('year', '{{ $selectedYear ?? "" }}');
+    params.append('month', '{{ $selectedMonth ?? "" }}');
+    params.append('search', '{{ $search ?? "" }}');
+    params.append('export', 'excel');
+    params.append('mode', 'rekapan_table');
+    
+    // Add selected columns
+    @if(!empty($selectedColumns))
+      @foreach($selectedColumns as $col)
+        params.append('columns[]', '{{ $col }}');
+      @endforeach
+    @endif
+
+    // Redirect to export route
+    window.location.href = '{{ route("pembayaran.rekapan.export") }}?' + params.toString();
+  } catch (error) {
+    console.error('Export error:', error);
+    alert('Terjadi kesalahan saat export: ' + error.message);
+    btn.innerHTML = originalText;
+    btn.disabled = false;
+  }
+}
+
+// Export Rekapan Table to PDF
+function exportRekapanTableToPDF() {
+  const btn = event?.target?.closest('.btn-export-pdf') || document.querySelector('#rekapanTable').closest('.table-container').querySelector('.btn-export-pdf');
+  if (!btn) return;
+  
+  const originalText = btn.innerHTML;
+  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Processing...';
+  btn.disabled = true;
+
+  try {
+    // Get all filter parameters
+    const params = new URLSearchParams();
+    params.append('status_pembayaran', '{{ $selectedStatus ?? "" }}');
+    params.append('year', '{{ $selectedYear ?? "" }}');
+    params.append('month', '{{ $selectedMonth ?? "" }}');
+    params.append('search', '{{ $search ?? "" }}');
+    params.append('export', 'pdf');
+    params.append('mode', 'rekapan_table');
+    
+    // Add selected columns
+    @if(!empty($selectedColumns))
+      @foreach($selectedColumns as $col)
+        params.append('columns[]', '{{ $col }}');
+      @endforeach
+    @endif
+
+    // Redirect to export route
+    window.location.href = '{{ route("pembayaran.rekapan.export") }}?' + params.toString();
+  } catch (error) {
+    console.error('Export error:', error);
+    alert('Terjadi kesalahan saat export: ' + error.message);
+    btn.innerHTML = originalText;
+    btn.disabled = false;
+  }
+}
 </script>
 
 @endsection

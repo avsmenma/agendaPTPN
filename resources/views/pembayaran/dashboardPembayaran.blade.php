@@ -630,7 +630,7 @@
 
                     @if($dokumen->jenis_pph || $dokumen->dpp_pph || $dokumen->ppn_terhutang)
                       <!-- Section Perpajakan -->
-                      <div class="section-title">Informasi Perpajakan</div>
+                      <div class="section-title">Informasi Team Perpajakan</div>
                       <div class="detail-grid">
                         <div class="detail-item">
                           <span class="detail-label">Jenis PPh</span>

@@ -8,6 +8,12 @@ use App\Models\Dokumen;
 class DashboardController extends Controller
 {
     public function index(){
+        // Redirect Admin/Owner to owner dashboard
+        $user = auth()->user();
+        if ($user && (strtolower($user->role) === 'admin' || strtolower($user->role) === 'owner')) {
+            return redirect('/owner/dashboard');
+        }
+
         // Get statistics for IbuA (only documents created by ibuA)
         $totalDokumen = Dokumen::where('created_by', 'ibuA')->count();
 

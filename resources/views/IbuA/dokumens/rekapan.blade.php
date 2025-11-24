@@ -288,6 +288,35 @@
     border: 1px solid rgba(26, 77, 62, 0.08);
   }
 
+  .table-responsive {
+    overflow-x: auto;
+    overflow-y: visible;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Always visible scrollbar */
+  .table-responsive::-webkit-scrollbar {
+    height: 12px;
+    -webkit-appearance: none;
+  }
+
+  .table-responsive::-webkit-scrollbar-thumb {
+    background: linear-gradient(135deg, #1a4d3e 0%, #0f3d2e 100%);
+    border-radius: 6px;
+    border: 2px solid #ffffff;
+  }
+
+  .table-responsive::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 6px;
+  }
+
+  /* Firefox scrollbar - always visible */
+  .table-responsive {
+    scrollbar-width: thin;
+    scrollbar-color: #1a4d3e #f1f1f1;
+  }
+
   .table-container h6 {
     margin-bottom: 24px;
     padding-bottom: 20px;
@@ -358,6 +387,50 @@
   .badge-processing { background: linear-gradient(135deg, #17a2b8 0%, #138496 100%); color: white; }
   .badge-completed { background: linear-gradient(135deg, #6f42c1 0%, #5a2d91 100%); color: white; }
   .badge-returned { background: linear-gradient(135deg, #dc3545 0%, #c82333 100%); color: white; }
+  .badge-unknown { background: linear-gradient(135deg, #6c757d 0%, #5a6268 100%); color: white; }
+
+  /* Pagination */
+  .pagination {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 24px;
+  }
+
+  .pagination .page-link {
+    border: 2px solid rgba(26, 77, 62, 0.1);
+    background-color: white;
+    color: #1a4d3e;
+    border-radius: 10px;
+    padding: 8px 16px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    margin: 0 2px;
+    min-width: 40px;
+    min-height: 40px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .pagination .page-link:hover {
+    border-color: #40916c;
+    background: linear-gradient(135deg, rgba(64, 145, 108, 0.1) 0%, transparent 100%);
+    transform: translateY(-2px);
+  }
+
+  .pagination .page-item.active .page-link {
+    background: linear-gradient(135deg, #1a4d3e 0%, #0f3d2e 100%);
+    border-color: transparent;
+    color: white;
+  }
+
+  .pagination .page-link.active {
+    background: linear-gradient(135deg, #1a4d3e 0%, #0f3d2e 100%);
+    border-color: transparent;
+    color: white;
+    cursor: default;
+  }
 
   .btn-filter {
     padding: 12px 24px;
@@ -638,12 +711,27 @@
                   @break
                 @case('sent_to_ibub')
                   <span class="badge badge-sent">
-                    <i class="fas fa-paper-plane"></i> Terkirim
+                    <i class="fas fa-paper-plane"></i> Terkirim ke Ibu Yuni
+                  </span>
+                  @break
+                @case('sent_to_perpajakan')
+                  <span class="badge badge-sent">
+                    <i class="fas fa-paper-plane"></i> Terkirim ke Team Perpajakan
+                  </span>
+                  @break
+                @case('sent_to_akutansi')
+                  <span class="badge badge-sent">
+                    <i class="fas fa-paper-plane"></i> Terkirim ke Team Akutansi
+                  </span>
+                  @break
+                @case('sent_to_pembayaran')
+                  <span class="badge badge-sent">
+                    <i class="fas fa-paper-plane"></i> Terkirim ke Team Pembayaran
                   </span>
                   @break
                 @case('sedang diproses')
                   <span class="badge badge-processing">
-                    <i class="fas fa-spinner"></i> Diproses
+                    <i class="fas fa-spinner"></i> Sedang Diproses
                   </span>
                   @break
                 @case('selesai')
@@ -656,9 +744,19 @@
                     <i class="fas fa-undo"></i> Dikembalikan
                   </span>
                   @break
+                @case('returned_to_department')
+                  <span class="badge badge-returned">
+                    <i class="fas fa-undo"></i> Dikembalikan ke Bagian
+                  </span>
+                  @break
+                @case('returned_to_bidang')
+                  <span class="badge badge-returned">
+                    <i class="fas fa-undo"></i> Dikembalikan ke Bidang
+                  </span>
+                  @break
                 @default
-                  <span class="badge badge-draft">
-                    <i class="fas fa-question"></i> {{ $dokumen->status }}
+                  <span class="badge badge-unknown">
+                    <i class="fas fa-question"></i> {{ ucfirst(str_replace('_', ' ', $dokumen->status)) }}
                   </span>
               @endswitch
             </td>
@@ -678,7 +776,38 @@
   <!-- Pagination -->
   @if($dokumens->hasPages())
     <div class="d-flex justify-content-center mt-4">
-      {{ $dokumens->links() }}
+      <div class="pagination">
+        @php
+          $currentPage = $dokumens->currentPage();
+          $lastPage = $dokumens->lastPage();
+          $startPage = max(1, $currentPage - 2);
+          $endPage = min($lastPage, $currentPage + 2);
+        @endphp
+
+        @if($startPage > 1)
+          <a href="{{ $dokumens->appends(request()->query())->url(1) }}" class="page-link">1</a>
+          @if($startPage > 2)
+            <span class="page-link" style="border: none; background: transparent; cursor: default;">...</span>
+          @endif
+        @endif
+
+        @for($i = $startPage; $i <= $endPage; $i++)
+          @if($i == $currentPage)
+            <span class="page-link active">{{ $i }}</span>
+          @else
+            <a href="{{ $dokumens->appends(request()->query())->url($i) }}" class="page-link">
+              {{ $i }}
+            </a>
+          @endif
+        @endfor
+
+        @if($endPage < $lastPage)
+          @if($endPage < $lastPage - 1)
+            <span class="page-link" style="border: none; background: transparent; cursor: default;">...</span>
+          @endif
+          <a href="{{ $dokumens->appends(request()->query())->url($lastPage) }}" class="page-link">{{ $lastPage }}</a>
+        @endif
+      </div>
     </div>
   @endif
 </div>

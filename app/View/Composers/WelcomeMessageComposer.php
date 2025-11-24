@@ -79,6 +79,7 @@ final readonly class WelcomeMessageComposer
             'dashboardPerpajakan' => 'perpajakan',
             'dashboardAkutansi' => 'akutansi',
             'dashboardPembayaran' => 'pembayaran',
+            'owner.dashboard' => 'owner',
             default => null,
         };
     }

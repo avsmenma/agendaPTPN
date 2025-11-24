@@ -67,6 +67,7 @@ final readonly class WelcomeMessageService
             'perpajakan' => 'Selamat datang, Team Perpajakan',
             'akutansi' => 'Selamat datang, Team Akutansi',
             'pembayaran' => 'Selamat datang, Team Pembayaran',
+            'owner' => 'Selamat datang, Owner',
             default => 'Selamat datang di Agenda Online PTPN',
         };
     }

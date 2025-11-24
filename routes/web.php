@@ -138,6 +138,22 @@ Route::get('owner/api/document-timeline/{id}', [OwnerDashboardController::class,
     ->middleware('autologin', 'role:admin,owner')
     ->name('owner.api.document-timeline');
 
+Route::get('owner/workflow/{id}', [OwnerDashboardController::class, 'showWorkflow'])
+    ->middleware('autologin', 'role:admin,owner')
+    ->name('owner.workflow');
+
+Route::get('owner/rekapan', [OwnerDashboardController::class, 'rekapan'])
+    ->middleware('autologin', 'role:admin,owner')
+    ->name('owner.rekapan');
+
+Route::get('owner/rekapan/{dokumen}/detail', [OwnerDashboardController::class, 'getDocumentDetail'])
+    ->middleware('autologin', 'role:admin,owner')
+    ->name('owner.rekapan.detail');
+
+Route::get('owner/rekapan-keterlambatan', [OwnerDashboardController::class, 'rekapanKeterlambatan'])
+    ->middleware('autologin', 'role:admin,owner')
+    ->name('owner.rekapan-keterlambatan');
+
 // Admin shortcut to Owner Dashboard
 Route::get('admin/monitoring', [OwnerDashboardController::class, 'index'])
     ->middleware('autologin', 'role:admin')
@@ -218,6 +234,10 @@ Route::middleware(['autologin'])->group(function () {
 
 // Pembayaran Routes
 Route::get('/dokumensPembayaran', [DashboardPembayaranController::class, 'dokumens'])->name('dokumensPembayaran.index');
+Route::get('/dokumensPembayaran/{dokumen}/detail', [DashboardPembayaranController::class, 'getDocumentDetail'])->name('dokumensPembayaran.detail');
+Route::post('/dokumensPembayaran/{dokumen}/set-deadline', [DashboardPembayaranController::class, 'setDeadline'])->name('dokumensPembayaran.setDeadline');
+Route::post('/dokumensPembayaran/{dokumen}/update-status', [DashboardPembayaranController::class, 'updateStatus'])->name('dokumensPembayaran.updateStatus');
+Route::post('/dokumensPembayaran/{dokumen}/upload-bukti', [DashboardPembayaranController::class, 'uploadBukti'])->name('dokumensPembayaran.uploadBukti');
 Route::get('/dokumensPembayaran/create', [DashboardPembayaranController::class, 'createDokumen'])->name('dokumensPembayaran.create');
 Route::post('/dokumensPembayaran', [DashboardPembayaranController::class, 'storeDokumen'])->name('dokumensPembayaran.store');
 Route::get('/dokumensPembayaran/{dokumen}/edit', [DashboardPembayaranController::class, 'editDokumen'])->name('dokumensPembayaran.edit');
@@ -226,6 +246,7 @@ Route::delete('/dokumensPembayaran/{dokumen}', [DashboardPembayaranController::c
 Route::get('/pengembalian-dokumensPembayaran', [DashboardPembayaranController::class, 'pengembalian'])->name('pengembalianPembayaran.index');
 Route::get('/rekapan-keterlambatan', [DashboardPembayaranController::class, 'rekapanKeterlambatan'])->name('rekapanKeterlambatan.index');
 Route::get('/rekapan-pembayaran', [DashboardPembayaranController::class, 'rekapan'])->name('pembayaran.rekapan');
+Route::get('/rekapan-pembayaran/export', [DashboardPembayaranController::class, 'exportRekapan'])->name('pembayaran.rekapan.export');
 Route::get('/diagramPembayaran', [DashboardPembayaranController::class, 'diagram'])->name('diagramPembayaran.index');
 
 // Akutansi Routes

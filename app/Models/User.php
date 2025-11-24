@@ -24,7 +24,9 @@ final class User extends Authenticatable
     ];
 
     public const DASHBOARD_ROUTES = [
-        'Admin' => '/dashboard',
+        'Admin' => '/owner/dashboard',
+        'owner' => '/owner/dashboard',
+        'Owner' => '/owner/dashboard',
         'IbuA' => '/dashboard',
         'IbuB' => '/dashboardB',
         'Pembayaran' => '/dashboardPembayaran',

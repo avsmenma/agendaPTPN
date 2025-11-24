@@ -1,6 +1,204 @@
 @extends('layouts/app')
 @section('content')
 
+<!-- Critical JavaScript Functions - Load First -->
+<script>
+// Use IIFE to create a closure and ensure proper function definition
+(function() {
+    'use strict';
+
+    console.log('🚀 Initializing critical functions...');
+
+    // Define functions immediately to prevent "is not defined" errors
+    function toggleDetailImpl(event, docId) {
+        console.log('🎯 toggleDetail called with docId:', docId, 'event:', event);
+
+        // Always prevent default behavior and stop propagation
+        if (event) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
+
+        // Check if click is on interactive elements that should NOT trigger detail view
+        if (event && event.target) {
+            const target = event.target;
+            if (target && (
+                target.closest('.btn-action') ||
+                target.closest('.status-button') ||
+                target.closest('.status-dropdown') ||
+                target.closest('.status-actions') ||
+                target.closest('.action-buttons') ||
+                target.closest('button') ||
+                target.closest('a') ||
+                target.closest('select') ||
+                target.closest('input') ||
+                target.closest('textarea')
+            )) {
+                console.log('Click on interactive element, skipping detail toggle');
+                return;
+            }
+        }
+
+        // Debug: Log the document being clicked
+        console.log('Opening detail for document ID:', docId);
+
+        // Find the detail row
+        const detailRow = document.getElementById('detail-' + docId);
+        if (!detailRow) {
+            console.error('Could not find detail row for document:', docId);
+            return;
+        }
+
+        // Find the main row (parent of detail row)
+        const mainRow = detailRow.previousElementSibling;
+        if (!mainRow) {
+            console.error('Could not find main row for document:', docId);
+            return;
+        }
+
+        // Close all other detail rows first
+        const allDetailRows = document.querySelectorAll('.detail-row.show');
+        const allMainRows = document.querySelectorAll('.main-row.selected');
+
+        allDetailRows.forEach(row => {
+            if (row.id !== 'detail-' + docId) {
+                row.classList.remove('show');
+            }
+        });
+
+        allMainRows.forEach(row => {
+            if (row !== mainRow) {
+                row.classList.remove('selected');
+            }
+        });
+
+        // Toggle current detail row
+        const isShowing = detailRow.classList.contains('show');
+
+        if (isShowing) {
+            // Hide detail
+            detailRow.classList.remove('show');
+            mainRow.classList.remove('selected');
+        } else {
+            // Show detail
+            loadDocumentDetail(docId);
+            detailRow.classList.add('show');
+            mainRow.classList.add('selected');
+
+            // Smooth scroll to detail
+            setTimeout(() => {
+                detailRow.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'nearest'
+                });
+            }, 100);
+        }
+    }
+
+    function loadDocumentDetailImpl(docId) {
+        console.log('loadDocumentDetail called for docId:', docId);
+        const detailContent = document.getElementById('detail-content-' + docId);
+
+        if (!detailContent) {
+            console.error('Detail content container not found for document:', docId);
+            return;
+        }
+
+        // Show loading state
+        detailContent.innerHTML = `
+            <div class="text-center p-4">
+                <i class="fa-solid fa-spinner fa-spin me-2"></i> Loading detail...
+            </div>
+        `;
+
+        // Get CSRF token
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+
+        fetch(`/dokumens/${docId}/detail`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'text/html',
+                'X-CSRF-TOKEN': csrfToken,
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'text/html'
+            }
+        })
+        .then(response => {
+            console.log('Response status:', response.status);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.text();
+        })
+        .then(html => {
+            console.log('Detail loaded successfully for document:', docId);
+            detailContent.innerHTML = html;
+
+            // Initialize countdown for this detail if needed
+            if (typeof initializeCountdowns === 'function') {
+                setTimeout(() => initializeCountdowns(), 100);
+            }
+
+            // Initialize deadlines if function exists
+            if (typeof initializeDeadlines === 'function') {
+                setTimeout(() => initializeDeadlines(), 100);
+            }
+        })
+        .catch(error => {
+            console.error('Error loading document detail:', error);
+            detailContent.innerHTML = `
+                <div class="text-center p-4 text-danger">
+                    <i class="fa-solid fa-exclamation-triangle me-2"></i>
+                    Gagal memuat detail dokumen.
+                    <br><small class="text-muted">Error: ${error.message}</small>
+                    <br><button class="btn btn-sm btn-primary mt-2" onclick="loadDocumentDetail(${docId})">
+                        <i class="fa-solid fa-refresh me-1"></i> Coba Lagi
+                    </button>
+                </div>
+            `;
+        });
+    }
+
+    function showNotificationImpl(message, type = 'info') {
+        console.log('showNotification called:', message, type);
+        // Remove existing notifications
+        const existingNotifications = document.querySelectorAll('.notification');
+        existingNotifications.forEach(notification => notification.remove());
+
+        // Create notification element
+        const notification = document.createElement('div');
+        notification.className = `notification notification-${type}`;
+        notification.innerHTML = `
+            <div class="notification-content">
+                <i class="fa-solid fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-triangle' : 'info-circle'}"></i>
+                <span>${message}</span>
+            </div>
+        `;
+
+        // Add to page
+        document.body.appendChild(notification);
+
+        // Show notification
+        setTimeout(() => notification.classList.add('show'), 100);
+
+        // Hide after 3 seconds
+        setTimeout(() => {
+            notification.classList.remove('show');
+            setTimeout(() => notification.remove(), 300);
+        }, 3000);
+    }
+
+    // Assign functions to global window object immediately
+    window.toggleDetail = toggleDetailImpl;
+    window.loadDocumentDetail = loadDocumentDetailImpl;
+    window.showNotification = showNotificationImpl;
+
+    console.log('✅ Functions assigned to window object');
+    console.log('window.toggleDetail type:', typeof window.toggleDetail);
+
+})();
+</script>
+
 <style>
   h2 {
     background: linear-gradient(135deg, #083E40 0%, #889717 100%);
@@ -132,6 +330,7 @@ search-box .input-group {
     border-left: 3px solid #ffc107 !important;
     transition: all 0.3s ease;
     pointer-events: auto;
+    cursor: pointer;
   }
 
   .table-enhanced tbody tr.locked-row::before {
@@ -199,13 +398,463 @@ search-box .input-group {
     cursor: not-allowed;
   }
 
-  /* Enhanced deadline column for locked state - Simplified */
-  .table-enhanced tbody tr.locked-row .deadline-empty {
-    background: rgba(255, 193, 7, 0.05);
-    border: 1px solid rgba(255, 193, 7, 0.2);
-    color: #856404;
-    font-weight: 500;
-    /* Removed animation for better readability */
+  /* Ensure all document rows are clickable regardless of status */
+  .table-enhanced tbody tr {
+    cursor: pointer !important;
+    pointer-events: auto !important;
+  }
+
+  /* Override any cursor styles for locked rows to still show pointer */
+  .table-enhanced tbody tr.locked-row {
+    cursor: pointer !important;
+    pointer-events: auto !important;
+  }
+
+  /* Make sure the detail rows don't interfere with clicking */
+  .detail-row {
+    pointer-events: none;
+  }
+
+  .detail-row .detail-content {
+    pointer-events: auto;
+  }
+
+  /* Deadline card design matching perpajakan style */
+  .deadline-card {
+    position: relative;
+    background: white;
+    border-radius: 12px;
+    padding: 10px 12px;
+    border: 2px solid transparent;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow: hidden;
+    margin: 0 auto;
+    max-width: 150px;
+  }
+
+  .deadline-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, var(--deadline-color) 0%, var(--deadline-color-light) 100%);
+    transition: height 0.3s ease;
+  }
+
+  .deadline-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+    border-color: var(--deadline-color);
+  }
+
+  .deadline-card:hover::before {
+    height: 5px;
+  }
+
+  .deadline-time {
+    font-size: 11px;
+    font-weight: 700;
+    color: #2c3e50;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+  }
+
+  .deadline-time i {
+    font-size: 10px;
+    color: var(--deadline-color);
+  }
+
+  .deadline-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 5px 12px;
+    border-radius: 20px;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .deadline-indicator::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+    transition: left 0.5s ease;
+  }
+
+  .deadline-card:hover .deadline-indicator::before {
+    left: 100%;
+  }
+
+  /* Safe State - Green Theme */
+  .deadline-card.deadline-safe {
+    --deadline-color: #10b981;
+    --deadline-color-light: #34d399;
+    --deadline-bg: #ecfdf5;
+    --deadline-text: #065f46;
+  }
+
+  .deadline-card.deadline-safe {
+    background: var(--deadline-bg) !important;
+    border-color: rgba(16, 185, 129, 0.2) !important;
+  }
+
+  .deadline-card.deadline-safe .deadline-time {
+    color: var(--deadline-text) !important;
+  }
+
+  .deadline-indicator.deadline-safe {
+    background: linear-gradient(135deg, var(--deadline-color) 0%, var(--deadline-color-light) 100%);
+    color: white;
+    box-shadow: 0 3px 10px rgba(16, 185, 129, 0.4);
+  }
+
+  .deadline-indicator.deadline-safe i::before {
+    content: "\f058"; /* check-circle */
+  }
+
+  /* Warning State - Orange Theme */
+  .deadline-card.deadline-warning {
+    --deadline-color: #f59e0b;
+    --deadline-color-light: #fbbf24;
+    --deadline-bg: #fffbeb;
+    --deadline-text: #92400e;
+  }
+
+  .deadline-card.deadline-warning {
+    background: var(--deadline-bg) !important;
+    border-color: rgba(245, 158, 11, 0.2) !important;
+  }
+
+  .deadline-card.deadline-warning .deadline-time {
+    color: var(--deadline-text) !important;
+  }
+
+  .deadline-indicator.deadline-warning {
+    background: linear-gradient(135deg, var(--deadline-color) 0%, var(--deadline-color-light) 100%);
+    color: white;
+    box-shadow: 0 3px 10px rgba(245, 158, 11, 0.4);
+  }
+
+  .deadline-indicator.deadline-warning i::before {
+    content: "\f071"; /* exclamation-triangle */
+  }
+
+  /* Danger State - Red Theme */
+  .deadline-card.deadline-danger {
+    --deadline-color: #ef4444;
+    --deadline-color-light: #f87171;
+    --deadline-bg: #fef2f2;
+    --deadline-text: #991b1b;
+  }
+
+  .deadline-card.deadline-danger {
+    background: var(--deadline-bg) !important;
+    border-color: rgba(239, 68, 68, 0.2) !important;
+  }
+
+  .deadline-card.deadline-danger .deadline-time {
+    color: var(--deadline-text) !important;
+    font-weight: 800;
+  }
+
+  .deadline-indicator.deadline-danger {
+    background: linear-gradient(135deg, var(--deadline-color) 0%, var(--deadline-color-light) 100%);
+    color: white;
+    box-shadow: 0 3px 10px rgba(239, 68, 68, 0.4);
+    animation: danger-pulse 2s infinite;
+  }
+
+  .deadline-indicator.deadline-danger i::before {
+    content: "\f06a"; /* exclamation-circle */
+  }
+
+  /* Overdue State - Dark Red with Alert Animation */
+  .deadline-card.deadline-overdue {
+    --deadline-color: #dc2626;
+    --deadline-color-light: #ef4444;
+    --deadline-bg: #fef2f2;
+    --deadline-text: #991b1b;
+  }
+
+  .deadline-card.deadline-overdue {
+    background: var(--deadline-bg) !important;
+    border-color: rgba(220, 38, 38, 0.3) !important;
+    animation: overdue-alert 3s infinite;
+  }
+
+  .deadline-card.deadline-overdue .deadline-time {
+    color: var(--deadline-text) !important;
+    font-weight: 800;
+  }
+
+  .deadline-indicator.deadline-overdue {
+    background: linear-gradient(135deg, var(--deadline-color) 0%, var(--deadline-color-light) 100%);
+    color: white;
+    box-shadow: 0 4px 16px rgba(220, 38, 68, 0.5);
+    font-weight: 800;
+    animation: overdue-glow 1.5s infinite;
+  }
+
+  .deadline-indicator.deadline-overdue i::before {
+    content: "\f071"; /* exclamation-triangle */
+    animation: warning-shake 1s infinite;
+  }
+
+  /* Enhanced late information */
+  .late-info {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 10px;
+    font-weight: 700;
+    margin-top: 8px;
+    padding: 6px 10px;
+    border-radius: 20px;
+    background: linear-gradient(135deg, rgba(220, 38, 68, 0.1) 0%, rgba(239, 68, 68, 0.15) 100%);
+    border: 1px solid rgba(220, 38, 68, 0.3);
+    color: #991b1b;
+    animation: late-warning 2s infinite;
+  }
+
+  .late-info i {
+    font-size: 11px;
+    color: #dc2626;
+  }
+
+  .late-info .late-text {
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .deadline-progress {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg,
+      var(--deadline-color) 0%,
+      var(--deadline-color-light) 50%,
+      var(--deadline-color) 100%);
+    border-radius: 0 0 10px 10px;
+    transform-origin: left;
+    transition: transform 0.5s ease;
+  }
+
+  .deadline-note {
+    font-size: 9px;
+    color: #6b7280;
+    font-style: italic;
+    margin-top: 4px;
+    line-height: 1.3;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-align: center;
+  }
+
+  .no-deadline {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: #9ca3af;
+    font-size: 11px;
+    font-style: italic;
+    padding: 8px 12px;
+    border-radius: 20px;
+    background: #f9fafb;
+    border: 1px dashed #d1d5db;
+    transition: all 0.3s ease;
+  }
+
+  .no-deadline:hover {
+    background: #f3f4f6;
+    border-color: #9ca3af;
+  }
+
+  .no-deadline i {
+    font-size: 11px;
+    opacity: 0.7;
+  }
+
+  @keyframes overdue-alert {
+    0%, 85%, 100% {
+      border-color: rgba(220, 38, 38, 0.3);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    }
+    90%, 95% {
+      border-color: rgba(220, 38, 38, 0.8);
+      box-shadow: 0 0 16px rgba(220, 38, 38, 0.4);
+    }
+  }
+
+  @keyframes overdue-glow {
+    0%, 100% {
+      box-shadow: 0 4px 16px rgba(220, 38, 68, 0.5);
+      transform: translateY(0);
+    }
+    50% {
+      box-shadow: 0 6px 24px rgba(220, 38, 68, 0.7);
+      transform: translateY(-1px);
+    }
+  }
+
+  @keyframes late-warning {
+    0%, 100% {
+      background: linear-gradient(135deg, rgba(220, 38, 68, 0.1) 0%, rgba(239, 68, 68, 0.15) 100%);
+      transform: scale(1);
+    }
+    50% {
+      background: linear-gradient(135deg, rgba(220, 38, 68, 0.15) 0%, rgba(239, 68, 68, 0.25) 100%);
+      transform: scale(1.02);
+    }
+  }
+
+  @keyframes warning-shake {
+    0%, 100% { transform: translateX(0) rotate(0deg); }
+    25% { transform: translateX(-1px) rotate(-1deg); }
+    75% { transform: translateX(1px) rotate(1deg); }
+  }
+
+  @keyframes danger-pulse {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.05); opacity: 0.9; }
+  }
+
+  /* Mobile responsive */
+  @media (max-width: 768px) {
+    .deadline-card {
+      padding: 8px 10px;
+      max-width: 130px;
+    }
+
+    .deadline-time {
+      font-size: 10px;
+    }
+
+    .deadline-indicator {
+      font-size: 9px;
+      padding: 4px 10px;
+    }
+
+    .late-info {
+      font-size: 9px;
+      padding: 4px 8px;
+      margin-top: 6px;
+    }
+
+    .deadline-note {
+      font-size: 8px;
+    }
+  }
+
+  @media (max-width: 576px) {
+    .deadline-card {
+      padding: 6px 8px;
+      max-width: 120px;
+    }
+
+    .deadline-time {
+      font-size: 9px;
+    }
+
+    .deadline-indicator {
+      font-size: 8px;
+      padding: 3px 8px;
+    }
+
+    .deadline-note {
+      font-size: 7px;
+    }
+
+    .no-deadline {
+      font-size: 9px;
+      padding: 6px 10px;
+    }
+
+    .late-info {
+      font-size: 8px;
+      padding: 3px 6px;
+    }
+  }
+
+  /* Mobile responsive adjustments */
+  @media (max-width: 768px) {
+    .table-enhanced .col-deadline {
+      min-width: 140px;
+    }
+
+    .deadline-card {
+      padding: 8px 10px;
+      max-width: 130px;
+    }
+
+    .deadline-time {
+      font-size: 10px;
+    }
+
+    .deadline-indicator {
+      font-size: 9px;
+      padding: 4px 10px;
+    }
+
+    .late-info {
+      font-size: 9px;
+      padding: 4px 8px;
+      margin-top: 6px;
+    }
+
+    .deadline-note {
+      font-size: 8px;
+    }
+  }
+
+  @media (max-width: 576px) {
+    .deadline-card {
+      padding: 6px 8px;
+      max-width: 120px;
+    }
+
+    .deadline-time {
+      font-size: 9px;
+    }
+
+    .deadline-indicator {
+      font-size: 8px;
+      padding: 3px 8px;
+    }
+
+    .deadline-note {
+      font-size: 7px;
+    }
+
+    .no-deadline {
+      font-size: 9px;
+      padding: 6px 10px;
+    }
+
+    .late-info {
+      font-size: 8px;
+      padding: 3px 6px;
+    }
   }
 
   /* Responsive Locked State Enhancements */
@@ -1464,25 +2113,55 @@ search-box .input-group {
 
 
 
-<!-- Search & Filter Box -->
+<!-- Enhanced Search & Filter Box -->
 <div class="search-box">
-  <div class="input-group " style="flex: 1; max-width: auto; margin-right: 40%;">
-    <span class="input-group-text">
-      <i class="fa-solid fa-magnifying-glass text-muted"></i>
-    </span>
-    <input type="text" class="form-control" placeholder="Search...">
-  </div>
-  <div class="filter-section" style="margin-right: 20px;">
-    <select>
-      <option>Year</option>
-      <option>2025</option>
-      <option>2024</option>
-      <option>2023</option>
-    </select>
-  </div>
-  <a href="{{ url('/pengembalian-dokumens') }}"><button class="btn-tambah" style="margin-right: 20px;">Dokumen Dikembalikan</button></a>
-  <a href="#"><button class="btn-excel mr-2">Ekspor ke PDF</button></a>
+  <form action="{{ route('dokumensB.index') }}" method="GET" class="d-flex align-items-center flex-wrap gap-3">
+    <div class="input-group" style="flex: 1; min-width: 300px;">
+      <span class="input-group-text">
+        <i class="fa-solid fa-magnifying-glass text-muted"></i>
+      </span>
+      <input type="text" class="form-control" name="search" placeholder="Cari nomor agenda, SPP, nilai rupiah, atau field lainnya..." value="{{ request('search') }}">
+    </div>
+    <div class="filter-section">
+      <select name="year" class="form-select">
+        <option value="">Semua Tahun</option>
+        <option value="2025" {{ request('year') == '2025' ? 'selected' : '' }}>2025</option>
+        <option value="2024" {{ request('year') == '2024' ? 'selected' : '' }}>2024</option>
+        <option value="2023" {{ request('year') == '2023' ? 'selected' : '' }}>2023</option>
+      </select>
+    </div>
+    <button type="submit" class="btn-filter">
+      <i class="fa-solid fa-filter me-2"></i>Filter
+    </button>
+    <a href="{{ url('/pengembalian-dokumens') }}" class="btn-tambah" style="margin-right: 20px;">Dokumen Dikembalikan</a>
+    <a href="#"><button class="btn-excel mr-2">Ekspor ke PDF</button></a>
+  </form>
 </div>
+
+@if(isset($suggestions) && !empty($suggestions) && request('search'))
+<!-- Search Suggestions Alert -->
+<div class="alert alert-info alert-dismissible fade show suggestion-alert" role="alert" style="margin-bottom: 20px; border-left: 4px solid #0dcaf0; background-color: #e7f3ff;">
+  <div class="d-flex align-items-start">
+    <i class="fa-solid fa-lightbulb me-2 mt-1" style="color: #0dcaf0; font-size: 18px;"></i>
+    <div style="flex: 1;">
+      <strong style="color: #0a58ca;">Apakah yang Anda maksud?</strong>
+      <p class="mb-2 mt-2" style="color: #055160;">
+        Tidak ada hasil ditemukan untuk "<strong>{{ request('search') }}</strong>". Mungkin maksud Anda:
+      </p>
+      <div class="suggestion-buttons d-flex flex-wrap gap-2">
+        @foreach($suggestions as $suggestion)
+          <button type="button" class="btn btn-sm btn-outline-primary suggestion-btn" 
+                  data-suggestion="{{ $suggestion }}" 
+                  style="border-color: #0dcaf0; color: #0dcaf0;">
+            <i class="fa-solid fa-magnifying-glass me-1"></i>{{ $suggestion }}
+          </button>
+        @endforeach
+      </div>
+    </div>
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+  </div>
+</div>
+@endif
 
 <!-- Tabel Dokumen -->
 <div class="table-dokumen">
@@ -1509,7 +2188,7 @@ search-box .input-group {
         // Documents returned from departments/bidangs should not be locked even if they have no deadline initially
         $isLocked = is_null($dokumen->deadline_at) && in_array($dokumen->status, ['sent_to_ibub']) && is_null($dokumen->returned_to_department_at) && is_null($dokumen->returned_to_bidang_at);
       @endphp
-      <tr class="main-row {{ $isLocked ? 'locked-row' : '' }}" onclick="toggleDetail({{ $dokumen->id }})" title="Klik untuk melihat detail lengkap dokumen">
+      <tr class="main-row {{ $isLocked ? 'locked-row' : '' }}" onclick="toggleDetail(event, {{ $dokumen->id }})" title="Klik untuk melihat detail lengkap dokumen (bisa dibuka walau status sudah terkirim)" style="cursor: pointer;">
         <td class="col-no" style="text-align: center;">{{ $loop->iteration }}</td>
         <td class="col-surat">{{ $dokumen->nomor_agenda }}</td>
         <td class="col-spp">{{ $dokumen->tanggal_masuk ? $dokumen->tanggal_masuk->format('d/m/Y H:i') : '-' }}</td>
@@ -1518,39 +2197,26 @@ search-box .input-group {
         <td class="col-uraian">{{ $dokumen->keterangan ?? '-' }}</td>
         <td class="col-deadline">
           @if($dokumen->deadline_at)
-            <div class="deadline-info" data-deadline="{{ $dokumen->deadline_at->format('Y-m-d H:i:s') }}" data-doc-id="{{ $dokumen->id }}">
-              <!-- Progress Bar -->
-              <div class="deadline-progress">
-                <div class="deadline-progress-bar" id="progress-{{ $dokumen->id }}" style="width: 0%;"></div>
+            @php
+              $isSent = in_array($dokumen->status, ['sent_to_perpajakan', 'sent_to_akutansi']);
+            @endphp
+            <div class="deadline-card" data-deadline="{{ $dokumen->deadline_at->format('Y-m-d H:i:s') }}" data-sent="{{ $isSent ? 'true' : 'false' }}">
+              <div class="deadline-time">
+                <i class="fa-solid fa-clock"></i>
+                <span>{{ $dokumen->deadline_at->format('d M Y, H:i') }}</span>
               </div>
-
-              <!-- Countdown Display -->
-              <div class="deadline-countdown">
-                <div class="deadline-countdown-icon">
-                  <i class="fa-solid fa-clock"></i>
-                  <span class="countdown-text" id="countdown-{{ $dokumen->id }}">Loading...</span>
-                </div>
-                <div class="deadline-countdown-text" id="countdown-short-{{ $dokumen->id }}">--</div>
+              <div class="deadline-indicator">
+                <i class="fa-solid"></i>
+                <span class="status-text">AMAN</span>
               </div>
-
-              <!-- Date Display -->
-              <div class="deadline-date">
-                <i class="fa-solid fa-calendar-alt"></i>
-                <small>{{ $dokumen->deadline_at->format('d M Y, H:i') }}</small>
-              </div>
-
-              <!-- Note Display -->
               @if($dokumen->deadline_note)
-              <div class="deadline-note">
-                <i class="fa-solid fa-note-sticky"></i>
-                <small>{{ Str::limit($dokumen->deadline_note, 50) }}</small>
-              </div>
+                <div class="deadline-note">{{ Str::limit($dokumen->deadline_note, 50) }}</div>
               @endif
             </div>
           @else
-            <div class="deadline-empty">
+            <div class="no-deadline">
               <i class="fa-solid fa-clock"></i>
-              <span>Belum ditetapkan</span>
+              <span>Belum ada deadline</span>
             </div>
           @endif
         </td>
@@ -1560,9 +2226,9 @@ search-box .input-group {
           @elseif($dokumen->status == 'rejected_ibub')
             <span class="badge-status badge-dikembalikan">Rejected</span>
           @elseif($dokumen->status == 'sent_to_perpajakan')
-            <span class="badge-status badge-sent">📤 Terkirim ke Perpajakan</span>
+            <span class="badge-status badge-sent">📤 Terkirim ke Team Perpajakan</span>
           @elseif($dokumen->status == 'sent_to_akutansi')
-            <span class="badge-status badge-sent">📤 Terkirim ke Akutansi</span>
+            <span class="badge-status badge-sent">📤 Terkirim ke Team Akutansi</span>
           @elseif(in_array($dokumen->status, ['sent_to_ibub']) && !$isLocked)
             <!-- Simple Status Change Buttons -->
             <div class="status-actions" id="status-dropdown-{{ $dokumen->id }}" style="display: flex; gap: 8px; justify-content: center; align-items: center;">
@@ -1667,7 +2333,7 @@ search-box .input-group {
               </button>
               @endif
               @if(in_array($dokumen->status, ['sent_to_ibub', 'approved_ibub', 'sedang diproses']))
-              <button type="button" class="btn-action btn-kirim" onclick="openSendToNextModal({{ $dokumen->id }})" title="Kirim ke Perpajakan/Akutansi">
+              <button type="button" class="btn-action btn-kirim" onclick="openSendToNextModal({{ $dokumen->id }})" title="Kirim ke Team Perpajakan/Team Akutansi">
                 <i class="fa-solid fa-paper-plane"></i>
                 <span>Kirim</span>
               </button>
@@ -1708,100 +2374,118 @@ search-box .input-group {
 </div>
 
 <!-- Pagination -->
+@if(isset($dokumens) && $dokumens->hasPages())
 <div class="pagination">
-  <button>«</button>
-  <button class="active">1</button>
-  <button>2</button>
-  <button>3</button>
-  <button>4</button>
-  <button>5</button>
-  <button>»</button>
+    {{-- Previous Page Link --}}
+    @if($dokumens->onFirstPage())
+        <button class="btn-chevron" disabled>
+            <i class="fa-solid fa-chevron-left"></i>
+        </button>
+    @else
+        <a href="{{ $dokumens->appends(request()->query())->previousPageUrl() }}">
+            <button class="btn-chevron">
+                <i class="fa-solid fa-chevron-left"></i>
+            </button>
+        </a>
+    @endif
+
+    {{-- Pagination Elements --}}
+    @if($dokumens->hasPages())
+        {{-- First page --}}
+        @if($dokumens->currentPage() > 3)
+            <a href="{{ $dokumens->appends(request()->query())->url(1) }}">
+                <button>1</button>
+            </a>
+        @endif
+
+        {{-- Dots --}}
+        @if($dokumens->currentPage() > 4)
+            <button disabled>...</button>
+        @endif
+
+        {{-- Range of pages --}}
+        @for($i = max(1, $dokumens->currentPage() - 2); $i <= min($dokumens->lastPage(), $dokumens->currentPage() + 2); $i++)
+            @if($dokumens->currentPage() == $i)
+                <button class="active">{{ $i }}</button>
+            @else
+                <a href="{{ $dokumens->appends(request()->query())->url($i) }}">
+                    <button>{{ $i }}</button>
+                </a>
+            @endif
+        @endfor
+
+        {{-- Dots --}}
+        @if($dokumens->currentPage() < $dokumens->lastPage() - 3)
+            <button disabled>...</button>
+        @endif
+
+        {{-- Last page --}}
+        @if($dokumens->currentPage() < $dokumens->lastPage() - 2)
+            <a href="{{ $dokumens->appends(request()->query())->url($dokumens->lastPage()) }}">
+                <button>{{ $dokumens->lastPage() }}</button>
+            </a>
+        @endif
+    @endif
+
+    {{-- Next Page Link --}}
+    @if($dokumens->hasMorePages())
+        <a href="{{ $dokumens->appends(request()->query())->nextPageUrl() }}">
+            <button class="btn-chevron">
+                <i class="fa-solid fa-chevron-right"></i>
+            </button>
+        </a>
+    @else
+        <button class="btn-chevron" disabled>
+            <i class="fa-solid fa-chevron-right"></i>
+        </button>
+    @endif
 </div>
+@endif
 
 <!-- Modal Alasan Pengembalian -->
 
 <script>
-// Toggle detail row
-function toggleDetail(docId) {
-  const detailRow = document.getElementById('detail-' + docId);
-  const mainRow = event.currentTarget;
+// Core JavaScript functions - Load first to ensure availability
+document.addEventListener('DOMContentLoaded', function() {
+  console.log('DOM loaded, checking function availability...');
 
-  // Close all other detail rows first
-  const allDetailRows = document.querySelectorAll('.detail-row.show');
-  const allMainRows = document.querySelectorAll('.main-row.selected');
+  // Wait for scripts to fully load
+  setTimeout(() => {
+    console.log('Checking function types:');
+    console.log('window.toggleDetail type:', typeof window.toggleDetail);
+    console.log('window.loadDocumentDetail type:', typeof window.loadDocumentDetail);
 
-  allDetailRows.forEach(row => {
-    if (row.id !== 'detail-' + docId) {
-      row.classList.remove('show');
+    if (typeof window.toggleDetail === 'function') {
+      console.log('✓ toggleDetail is properly loaded');
+    } else {
+      console.error('✗ toggleDetail is not a function');
     }
-  });
 
-  allMainRows.forEach(row => {
-    if (row !== mainRow) {
-      row.classList.remove('selected');
+    if (typeof window.loadDocumentDetail === 'function') {
+      console.log('✓ loadDocumentDetail is properly loaded');
+    } else {
+      console.error('✗ loadDocumentDetail is not a function');
     }
-  });
 
-  // Toggle current detail row
-  const isShowing = detailRow.classList.contains('show');
+    // Test with a click on first document row if available
+    const firstRow = document.querySelector('tr.main-row');
+    if (firstRow) {
+      console.log('Found document rows, ready for clicking');
+    }
+  }, 1000);
+});
 
-  if (isShowing) {
-    // Hide detail
-    detailRow.classList.remove('show');
-    mainRow.classList.remove('selected');
-  } else {
-    // Show detail
-    loadDocumentDetail(docId);
-    detailRow.classList.add('show');
-    mainRow.classList.add('selected');
-
-    // Smooth scroll to detail
-    setTimeout(() => {
-      detailRow.scrollIntoView({
-        behavior: 'smooth',
-        block: 'nearest'
-      });
-    }, 100);
-  }
-}
-
-// Load document detail via AJAX
-function loadDocumentDetail(docId) {
-  const detailContent = document.getElementById('detail-content-' + docId);
-
-  // Show loading state
-  detailContent.innerHTML = `
-    <div class="text-center p-4">
-      <i class="fa-solid fa-spinner fa-spin me-2"></i> Loading detail...
-    </div>
-  `;
-
-  fetch(`/dokumens/${docId}/detail`)
-    .then(response => response.text())
-    .then(html => {
-      detailContent.innerHTML = html;
-
-      // Initialize countdown for this detail if needed
-      if (typeof initializeCountdowns === 'function') {
-        setTimeout(() => initializeCountdowns(), 100);
-      }
-    })
-    .catch(error => {
-      console.error('Error:', error);
-      detailContent.innerHTML = `
-        <div class="text-center p-4 text-danger">
-          <i class="fa-solid fa-exclamation-triangle me-2"></i> Gagal memuat detail dokumen.
-        </div>
-      `;
-    });
-}
-
-function confirmParaf(dokumenId) {
+// Confirm paraf function - Define as global
+window.confirmParaf = function(dokumenId) {
   if (confirm("Yakin mau menandai bahwa dokumen ini telah diparaf (selesai)?")) {
     // Implementation for paraf action
     console.log("Paraf confirmed for document:", dokumenId);
   }
-}
+};
+
+console.log('Additional functions loaded');
+console.log('Final toggleDetail type:', typeof window.toggleDetail);
+console.log('Final loadDocumentDetail type:', typeof window.loadDocumentDetail);
 
 // Simple approve function
 function quickApprove(docId) {
@@ -1949,7 +2633,6 @@ function updateActionButtons(docId, action) {
   });
 }
 
-
 // Optimized countdown timer with performance improvements
 let countdownUpdateInterval = null;
 let countdownTimers = new Map();
@@ -1961,168 +2644,173 @@ function initializeCountdowns() {
   }
   countdownTimers.forEach(timer => clearInterval(timer));
   countdownTimers.clear();
+}
 
-  const deadlineElements = document.querySelectorAll('.deadline-info');
-  if (deadlineElements.length === 0) return;
+// Enhanced deadline system with color coding and late information
+function initializeDeadlines() {
+  console.log('Initializing deadlines...');
+  const deadlineElements = document.querySelectorAll('.deadline-card');
+  console.log('Found deadline cards:', deadlineElements.length);
 
-  // Collect all countdown data with progress bar support
-  const countdowns = [];
-  deadlineElements.forEach(deadlineInfo => {
-    const deadlineStr = deadlineInfo.dataset.deadline;
-    const docId = deadlineInfo.dataset.docId;
-    const countdownEl = document.getElementById(`countdown-${docId}`);
-    const progressEl = document.getElementById(`progress-${docId}`);
-    const shortCountdownEl = document.getElementById(`countdown-short-${docId}`);
-
-    if (!countdownEl || !deadlineStr) return;
-
-    const deadline = new Date(deadlineStr.replace(' ', 'T'));
-    const countdownText = countdownEl.querySelector('.countdown-text');
-
-    if (!countdownText) return;
-
-    // Calculate total time for progress bar (from document creation to deadline)
-    const createdAt = new Date(deadlineInfo.dataset.created_at || deadlineStr.replace(' ', 'T'));
-    const totalTime = deadline - createdAt;
-    const elapsed = Date.now() - createdAt;
-
-    countdowns.push({
-      deadline,
-      countdownEl,
-      progressEl,
-      shortCountdownEl,
-      countdownText,
-      deadlineInfo,
-      docId,
-      totalTime,
-      createdAt
-    });
+  deadlineElements.forEach(card => {
+    updateDeadlineCard(card);
   });
 
-  if (countdowns.length === 0) return;
-
-  // Enhanced update function with progress bars and status classes
-  function updateAllCountdowns() {
-    const now = new Date();
-    let hasUrgentDeadlines = false;
-
-    countdowns.forEach(countdown => {
-      const distance = countdown.deadline - now;
-      const countdownText = countdown.countdownText;
-      const countdownEl = countdown.countdownEl;
-      const progressEl = countdown.progressEl;
-      const shortCountdownEl = countdown.shortCountdownEl;
-      const deadlineInfo = countdown.deadlineInfo;
-
-      // Remove all status classes first
-      deadlineInfo.classList.remove('status-safe', 'status-warning', 'status-danger', 'status-overdue');
-
-      if (distance < 0) {
-        // Overdue deadline
-        const daysOverdue = Math.abs(Math.floor(distance / (1000 * 60 * 60 * 24)));
-        countdownText.innerHTML = `<i class="fa-solid fa-exclamation-triangle me-1"></i>${daysOverdue} hari terlambat`;
-        if (shortCountdownEl) {
-          shortCountdownEl.textContent = `Terlambat ${daysOverdue}h`;
-        }
-        if (progressEl) {
-          progressEl.style.width = '100%';
-        }
-        deadlineInfo.classList.add('status-overdue');
-        return;
-      }
-
-      // Calculate progress percentage
-      let progressPercentage = 0;
-      if (countdown.totalTime > 0) {
-        const elapsed = now - countdown.createdAt;
-        progressPercentage = Math.min(100, Math.max(0, (elapsed / countdown.totalTime) * 100));
-      }
-
-      // Calculate time units
-      const days = Math.floor(distance / (1000 * 60 * 60 * 24));
-      const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-      const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
-
-      // Update display and status based on remaining time
-      if (days >= 2) {
-        // Safe zone (2+ days)
-        countdownText.innerHTML = `<i class="fa-solid fa-clock me-1"></i>${days} hari ${hours} jam`;
-        if (shortCountdownEl) {
-          shortCountdownEl.textContent = `${days}h ${hours}j`;
-        }
-        deadlineInfo.classList.add('status-safe');
-      } else if (days >= 1) {
-        // Warning zone (1-2 days)
-        countdownText.innerHTML = `<i class="fa-solid fa-clock me-1"></i>${days} hari ${hours} jam`;
-        if (shortCountdownEl) {
-          shortCountdownEl.textContent = `${days}h ${hours}j`;
-        }
-        deadlineInfo.classList.add('status-warning');
-      } else if (hours >= 6) {
-        // Warning zone (6-24 hours)
-        countdownText.innerHTML = `<i class="fa-solid fa-exclamation-triangle me-1"></i>${hours} jam ${minutes} menit`;
-        if (shortCountdownEl) {
-          shortCountdownEl.textContent = `${hours}j ${minutes}m`;
-        }
-        deadlineInfo.classList.add('status-warning');
-        hasUrgentDeadlines = true;
-      } else {
-        // Danger zone (< 6 hours)
-        countdownText.innerHTML = `<i class="fa-solid fa-exclamation-circle me-1"></i>${hours} jam ${minutes} menit`;
-        if (shortCountdownEl) {
-          shortCountdownEl.textContent = `${hours}j ${minutes}m`;
-        }
-        deadlineInfo.classList.add('status-danger');
-        hasUrgentDeadlines = true;
-      }
-
-      // Update progress bar
-      if (progressEl) {
-        progressEl.style.width = `${progressPercentage}%`;
-      }
+  // Update every 30 seconds for better responsiveness
+  setInterval(() => {
+    const cards = document.querySelectorAll('.deadline-card');
+    cards.forEach(card => {
+      updateDeadlineCard(card);
     });
+  }, 30000); // Update every 30 seconds
+}
 
-    // Adjust update frequency based on urgency for performance optimization
-    const newInterval = hasUrgentDeadlines ? 30000 : 120000; // 30s for urgent, 2min for normal
-    if (countdownUpdateInterval && countdownUpdateInterval._interval !== newInterval) {
-      clearInterval(countdownUpdateInterval);
-      countdownUpdateInterval = setInterval(updateAllCountdowns, newInterval);
-      countdownUpdateInterval._interval = newInterval;
+function updateDeadlineCard(card) {
+  const deadlineStr = card.dataset.deadline;
+  if (!deadlineStr) {
+    console.warn('Deadline card missing data-deadline attribute');
+    return;
+  }
+
+  // Check if document is already sent
+  const isSent = card.dataset.sent === 'true';
+
+  const deadline = new Date(deadlineStr);
+  const now = new Date();
+  const diffMs = deadline - now;
+
+  // Remove existing status classes
+  card.classList.remove('deadline-safe', 'deadline-warning', 'deadline-danger', 'deadline-overdue');
+
+  // Find status indicator
+  const statusIndicator = card.querySelector('.deadline-indicator');
+  if (!statusIndicator) {
+    console.error('Deadline indicator not found in card:', card);
+    return;
+  }
+  const statusText = card.querySelector('.status-text');
+  if (!statusText) {
+    console.error('Status text not found in card:', card);
+    return;
+  }
+  const statusIcon = statusIndicator.querySelector('i');
+  if (!statusIcon) {
+    console.error('Status icon not found in card:', card);
+    return;
+  }
+
+  // Remove existing late info and time hints
+  const existingLateInfo = card.querySelector('.late-info');
+  const existingTimeHint = card.querySelector('div[style*="margin-top: 2px"]');
+  const existingProgress = card.querySelector('.deadline-progress');
+
+  if (existingLateInfo) existingLateInfo.remove();
+  if (existingTimeHint) existingTimeHint.remove();
+  if (existingProgress) existingProgress.remove();
+
+  if (diffMs < 0) {
+    // Overdue state
+    card.classList.add('deadline-overdue');
+
+    // Calculate how late
+    const diffHours = Math.abs(Math.floor(diffMs / (1000 * 60 * 60)));
+    const diffDays = Math.abs(Math.floor(diffMs / (1000 * 60 * 60 * 24)));
+
+    // Update status text
+    statusText.textContent = 'TERLAMBAT';
+    statusIcon.className = 'fa-solid fa-exclamation-triangle';
+    statusIndicator.className = 'deadline-indicator deadline-overdue';
+
+    // Create late info with enhanced styling only if document is not sent
+    if (!isSent) {
+      let lateText;
+      if (diffDays >= 1) {
+        lateText = `${diffDays} ${diffDays === 1 ? 'hari' : 'hari'} telat`;
+      } else if (diffHours >= 1) {
+        lateText = `${diffHours} ${diffHours === 1 ? 'jam' : 'jam'} telat`;
+      } else {
+        lateText = 'Baru saja terlambat';
+      }
+
+      const lateInfo = document.createElement('div');
+      lateInfo.className = 'late-info';
+      lateInfo.innerHTML = `
+        <i class="fa-solid fa-exclamation-triangle"></i>
+        <span class="late-text">${lateText}</span>
+      `;
+
+      card.appendChild(lateInfo);
     }
+
+    // Add progress bar at bottom
+    const progressBar = document.createElement('div');
+    progressBar.className = 'deadline-progress';
+    card.appendChild(progressBar);
+
+  } else {
+    // Time remaining
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffMinutes = Math.floor(diffMs / (1000 * 60));
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+    // Simplified 3-status logic: >= 1 hari = hijau, < 1 hari = kuning, terlambat = merah
+    if (diffDays >= 1) {
+      // Safe (>= 1 day) - Green
+      card.classList.add('deadline-safe');
+      statusText.textContent = 'AMAN';
+      statusIcon.className = 'fa-solid fa-check-circle';
+      statusIndicator.className = 'deadline-indicator deadline-safe';
+
+      // Add time remaining hint only if document is not sent
+      if (!isSent) {
+        const timeHint = document.createElement('div');
+        timeHint.style.cssText = 'font-size: 8px; color: #065f46; margin-top: 2px; font-weight: 600;';
+        timeHint.textContent = `${diffDays} ${diffDays === 1 ? 'hari' : 'hari'} lagi`;
+        card.appendChild(timeHint);
+      }
+
+    } else if (diffHours >= 1 || diffMinutes >= 1) {
+      // Warning (< 1 day) - Yellow
+      card.classList.add('deadline-warning');
+      statusText.textContent = 'DEKAT';
+      statusIcon.className = 'fa-solid fa-exclamation-triangle';
+      statusIndicator.className = 'deadline-indicator deadline-warning';
+
+      // Add time remaining hint only if document is not sent
+      if (!isSent) {
+        const timeHint = document.createElement('div');
+        timeHint.style.cssText = 'font-size: 8px; color: #92400e; margin-top: 2px; font-weight: 700;';
+        if (diffHours >= 1) {
+          timeHint.textContent = `${diffHours} ${diffHours === 1 ? 'jam' : 'jam'} lagi`;
+        } else {
+          timeHint.textContent = `${diffMinutes} menit lagi`;
+          timeHint.style.animation = 'warning-shake 1s infinite';
+        }
+        card.appendChild(timeHint);
+      }
+
+    }
+
+    // Add progress bar
+    const progressBar = document.createElement('div');
+    progressBar.className = 'deadline-progress';
+    card.appendChild(progressBar);
   }
-
-  // Initial update
-  updateAllCountdowns();
-
-  // Set interval with initial 1-minute update
-  countdownUpdateInterval = setInterval(updateAllCountdowns, 60000);
-  countdownUpdateInterval._interval = 60000;
 }
 
-// Use efficient page load detection
+// Initialize on page load - Make sure function is available globally
+window.initializeDeadlines = initializeDeadlines;
+
+// Initialize deadlines when DOM is ready
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initializeCountdowns);
+  document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM fully loaded, initializing deadlines...');
+    initializeDeadlines();
+  });
 } else {
-  // DOM already loaded
-  initializeCountdowns();
+  console.log('DOM already loaded, initializing deadlines immediately...');
+  initializeDeadlines();
 }
-
-// Optimized re-initialization - debounced and limited scope
-let reinitializeTimeout = null;
-function scheduleReinitialize() {
-  if (reinitializeTimeout) {
-    clearTimeout(reinitializeTimeout);
-  }
-  reinitializeTimeout = setTimeout(initializeCountdowns, 500);
-}
-
-// Cleanup on page unload to prevent memory leaks
-window.addEventListener('beforeunload', function() {
-  if (countdownUpdateInterval) {
-    clearInterval(countdownUpdateInterval);
-  }
-  countdownTimers.forEach(timer => clearInterval(timer));
-});
 </script>
 
 <style>
@@ -2153,41 +2841,7 @@ window.addEventListener('beforeunload', function() {
   box-shadow: 0 4px 16px rgba(8, 62, 64, 0.15);
 }
 
-/* Progress Bar Container */
-.deadline-progress {
-  width: 100%;
-  height: 6px;
-  background: rgba(8, 62, 64, 0.1);
-  border-radius: 3px;
-  margin-bottom: 8px;
-  overflow: hidden;
-  position: relative;
-}
-
-.deadline-progress-bar {
-  height: 100%;
-  background: linear-gradient(90deg, var(--deadline-color, #28a745) 0%, var(--deadline-color-light, #34ce57) 100%);
-  border-radius: 3px;
-  transition: all 0.5s ease;
-  position: relative;
-  overflow: hidden;
-}
-
-.deadline-progress-bar::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
-  animation: progress-shimmer 2s infinite;
-}
-
-@keyframes progress-shimmer {
-  0% { transform: translateX(-100%); }
-  100% { transform: translateX(100%); }
-}
+/* Simplified deadline styling - progress bar removed */
 
 /* Deadline Status States */
 .deadline-info.status-safe {
@@ -2418,7 +3072,7 @@ window.addEventListener('beforeunload', function() {
 
         <div class="alert alert-info border-0 mb-4" style="background: linear-gradient(135deg, rgba(8, 62, 64, 0.1) 0%, rgba(136, 151, 23, 0.1) 100%); border-left: 4px solid #083E40;">
           <i class="fa-solid fa-info-circle me-2"></i>
-          <strong>Catatan:</strong> Deadline akan ditetapkan oleh departemen tujuan (Perpajakan atau Akutansi) setelah dokumen diterima.
+          <strong>Catatan:</strong> Deadline akan ditetapkan oleh departemen tujuan (Team Perpajakan atau Team Akutansi) setelah dokumen diterima.
         </div>
 
         <div class="mb-3">
@@ -2431,8 +3085,8 @@ window.addEventListener('beforeunload', function() {
               <div class="d-flex align-items-start">
                 <i class="fa-solid fa-receipt me-3 mt-1" style="color: #083E40; font-size: 20px;"></i>
                 <div>
-                  <strong style="color: #083E40;">Perpajakan</strong>
-                  <small class="text-muted d-block">Untuk dokumen yang perlu diproses perpajakan terlebih dahulu. Dokumen akan terkunci hingga perpajakan menetapkan deadline.</small>
+                  <strong style="color: #083E40;">Team Perpajakan</strong>
+                  <small class="text-muted d-block">Untuk dokumen yang perlu diproses Team Perpajakan terlebih dahulu. Dokumen akan terkunci hingga Team Perpajakan menetapkan deadline.</small>
                 </div>
               </div>
             </label>
@@ -2443,8 +3097,8 @@ window.addEventListener('beforeunload', function() {
               <div class="d-flex align-items-start">
                 <i class="fa-solid fa-calculator me-3 mt-1" style="color: #083E40; font-size: 20px;"></i>
                 <div>
-                  <strong style="color: #083E40;">Akutansi Langsung</strong>
-                  <small class="text-muted d-block">Untuk dokumen yang bisa langsung ke akutansi. Dokumen akan terkunci hingga akutansi menetapkan deadline.</small>
+                  <strong style="color: #083E40;">Team Akutansi Langsung</strong>
+                  <small class="text-muted d-block">Untuk dokumen yang bisa langsung ke Team Akutansi. Dokumen akan terkunci hingga Team Akutansi menetapkan deadline.</small>
                 </div>
               </div>
             </label>
@@ -2478,8 +3132,8 @@ window.addEventListener('beforeunload', function() {
         <h5 class="fw-bold mb-3">Pilih Tujuan Pengiriman Terlebih Dahulu!</h5>
         <p class="text-muted mb-0">
           Silakan pilih tujuan pengiriman dokumen terlebih dahulu:
-          <br>• <strong>Perpajakan</strong> - untuk dokumen yang perlu diproses perpajakan terlebih dahulu
-          <br>• <strong>Akutansi Langsung</strong> - untuk dokumen yang bisa langsung ke akutansi
+          <br>• <strong>Team Perpajakan</strong> - untuk dokumen yang perlu diproses Team Perpajakan terlebih dahulu
+          <br>• <strong>Team Akutansi Langsung</strong> - untuk dokumen yang bisa langsung ke Team Akutansi
         </p>
       </div>
       <div class="modal-footer border-0 justify-content-center">
@@ -3138,5 +3792,26 @@ document.addEventListener('DOMContentLoaded', function() {
   border-color: #083E40;
 }
 </style>
+
+<script>
+// Handle suggestion button clicks
+document.addEventListener('DOMContentLoaded', function() {
+    const suggestionButtons = document.querySelectorAll('.suggestion-btn');
+    
+    suggestionButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const suggestion = this.getAttribute('data-suggestion');
+            const searchInput = document.querySelector('input[name="search"]');
+            const form = searchInput.closest('form');
+            
+            // Set the suggestion value to search input
+            searchInput.value = suggestion;
+            
+            // Submit the form
+            form.submit();
+        });
+    });
+});
+</script>
 
 @endsection

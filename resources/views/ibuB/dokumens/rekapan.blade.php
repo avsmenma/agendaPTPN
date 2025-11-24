@@ -138,9 +138,34 @@
   .table-container {
     background: linear-gradient(135deg, #ffffff 0%, #f8faf8 100%);
     border-radius: 16px;
-    overflow: hidden;
+    overflow-x: auto;
+    overflow-y: visible;
     box-shadow: 0 8px 32px rgba(26, 77, 62, 0.1), 0 2px 8px rgba(15, 61, 46, 0.05);
     border: 1px solid rgba(26, 77, 62, 0.08);
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Always visible scrollbar */
+  .table-container::-webkit-scrollbar {
+    height: 12px;
+    -webkit-appearance: none;
+  }
+
+  .table-container::-webkit-scrollbar-thumb {
+    background: linear-gradient(135deg, #1a4d3e 0%, #0f3d2e 100%);
+    border-radius: 6px;
+    border: 2px solid #ffffff;
+  }
+
+  .table-container::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 6px;
+  }
+
+  /* Firefox scrollbar - always visible */
+  .table-container {
+    scrollbar-width: thin;
+    scrollbar-color: #1a4d3e #f1f1f1;
   }
 
   .table {
@@ -210,6 +235,10 @@
     background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
     color: white;
   }
+  .badge-unknown {
+    background: linear-gradient(135deg, #6c757d 0%, #5a6268 100%);
+    color: white;
+  }
 
   /* Pagination */
   .pagination {
@@ -228,6 +257,11 @@
     font-weight: 600;
     transition: all 0.3s ease;
     margin: 0 2px;
+    min-width: 40px;
+    min-height: 40px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
   }
 
   .pagination .page-link:hover {
@@ -240,6 +274,13 @@
     background: linear-gradient(135deg, #1a4d3e 0%, #0f3d2e 100%);
     border-color: transparent;
     color: white;
+  }
+
+  .pagination .page-link.active {
+    background: linear-gradient(135deg, #1a4d3e 0%, #0f3d2e 100%);
+    border-color: transparent;
+    color: white;
+    cursor: default;
   }
 
   /* Bagian Statistics */
@@ -316,7 +357,7 @@
         <div class="stat-content">
           <div class="stat-title">Total Dokumen</div>
           <div class="stat-value">{{ $statistics['total_documents'] }}</div>
-          <div class="stat-description">Semua dokumen yang dibuat oleh IbuA</div>
+          <div class="stat-description">Semua dokumen yang dibuat oleh Ibu Tarapul</div>
         </div>
         <div class="stat-icon total">
           <i class="fa-solid fa-file-lines"></i>
@@ -486,19 +527,34 @@
                 <span class="badge badge-draft">Draft</span>
                 @break
               @case('sent_to_ibub')
-                <span class="badge badge-sent">Terkirim</span>
+                <span class="badge badge-sent">Terkirim ke Ibu Yuni</span>
+                @break
+              @case('sent_to_perpajakan')
+                <span class="badge badge-sent">Terkirim ke Team Perpajakan</span>
+                @break
+              @case('sent_to_akutansi')
+                <span class="badge badge-sent">Terkirim ke Team Akutansi</span>
+                @break
+              @case('sent_to_pembayaran')
+                <span class="badge badge-sent">Terkirim ke Team Pembayaran</span>
                 @break
               @case('sedang diproses')
-                <span class="badge badge-processing">Diproses</span>
+                <span class="badge badge-processing">Sedang Diproses</span>
                 @break
               @case('selesai')
                 <span class="badge badge-completed">Selesai</span>
                 @break
               @case('returned_to_ibua')
-                <span class="badge badge-returned">Dikembalikan</span>
+                <span class="badge badge-returned">Dikembalikan ke Ibu Tarapul</span>
+                @break
+              @case('returned_to_department')
+                <span class="badge badge-returned">Dikembalikan ke Bagian</span>
+                @break
+              @case('returned_to_bidang')
+                <span class="badge badge-returned">Dikembalikan ke Bidang</span>
                 @break
               @default
-                <span class="badge badge-secondary">{{ $dokumen->status }}</span>
+                <span class="badge badge-unknown">{{ ucfirst(str_replace('_', ' ', $dokumen->status)) }}</span>
             @endswitch
           </td>
         </tr>
@@ -520,7 +576,38 @@
     <div class="text-muted">
       Menampilkan {{ $dokumens->firstItem() }} - {{ $dokumens->lastItem() }} dari total {{ $dokumens->total() }} dokumen
     </div>
-    {{ $dokumens->links() }}
+    <div class="pagination">
+      @php
+        $currentPage = $dokumens->currentPage();
+        $lastPage = $dokumens->lastPage();
+        $startPage = max(1, $currentPage - 2);
+        $endPage = min($lastPage, $currentPage + 2);
+      @endphp
+
+      @if($startPage > 1)
+        <a href="{{ $dokumens->appends(request()->query())->url(1) }}" class="page-link">1</a>
+        @if($startPage > 2)
+          <span class="page-link" style="border: none; background: transparent; cursor: default;">...</span>
+        @endif
+      @endif
+
+      @for($i = $startPage; $i <= $endPage; $i++)
+        @if($i == $currentPage)
+          <span class="page-link active">{{ $i }}</span>
+        @else
+          <a href="{{ $dokumens->appends(request()->query())->url($i) }}" class="page-link">
+            {{ $i }}
+          </a>
+        @endif
+      @endfor
+
+      @if($endPage < $lastPage)
+        @if($endPage < $lastPage - 1)
+          <span class="page-link" style="border: none; background: transparent; cursor: default;">...</span>
+        @endif
+        <a href="{{ $dokumens->appends(request()->query())->url($lastPage) }}" class="page-link">{{ $lastPage }}</a>
+      @endif
+    </div>
   </div>
 @endif
 

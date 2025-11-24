@@ -472,7 +472,7 @@
                 <div class="stat-content">
                     <div class="stat-title">Total Dokumen Belum Dikirim</div>
                     <div class="stat-value">{{ number_format($totalBelumDikirim, 0, ',', '.') }}</div>
-                    <div class="stat-description">Menunggu untuk dikirim ke IbuB</div>
+                    <div class="stat-description">Menunggu untuk dikirim ke Ibu Yuni</div>
                 </div>
             </div>
         </div>
@@ -487,7 +487,7 @@
                 <div class="stat-content">
                     <div class="stat-title">Total Dokumen Sudah Dikirim</div>
                     <div class="stat-value">{{ number_format($totalSudahDikirim, 0, ',', '.') }}</div>
-                    <div class="stat-description">Telah dikirim ke IbuB</div>
+                    <div class="stat-description">Telah dikirim ke Ibu Yuni</div>
                 </div>
             </div>
         </div>
@@ -547,7 +547,7 @@
                 @else
                   <span class="badge badge-sent">
                     <i class="fas fa-check-circle"></i>
-                    Sudah Dikirim ke IbuB
+                    Sudah Dikirim ke Ibu Yuni
                   </span>
                 @endif
               </td>
@@ -565,7 +565,7 @@
                              || (($dokumen->current_handler ?? 'ibuA') == 'ibuB' && ($dokumen->status ?? '') != 'returned_to_ibua');
                   @endphp
                   @if($canSend)
-                  <button type="button" class="btn-action btn-send" onclick="sendToIbuB({{ $dokumen->id }})" title="Kirim ke IbuB">
+                  <button type="button" class="btn-action btn-send" onclick="sendToIbuB({{ $dokumen->id }})" title="Kirim ke Ibu Yuni">
                     <i class="fa-solid fa-paper-plane"></i>
                     Kirim
                   </button>
@@ -595,7 +595,7 @@
 
 <script>
 function sendToIbuB(dokumenId) {
-  if (!confirm('Apakah Anda yakin ingin mengirim dokumen ini ke IbuB?')) {
+  if (!confirm('Apakah Anda yakin ingin mengirim dokumen ini ke Ibu Yuni?')) {
     return;
   }
 

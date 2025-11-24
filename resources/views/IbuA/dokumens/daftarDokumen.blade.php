@@ -640,6 +640,17 @@ search-box .input-group {
     background: linear-gradient(135deg, #9ab01f 0%, #a8bf23 50%, #b8cf27 100%);
   }
 
+  .btn-send:disabled {
+    background: linear-gradient(135deg, #6c757d 0%, #5a6268 100%);
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
+
+  .btn-send:disabled:hover {
+    transform: none;
+    box-shadow: none;
+  }
+
   /* Responsive Action Button Styles */
   @media (max-width: 1200px) {
     .btn-action {
@@ -1007,14 +1018,7 @@ search-box .input-group {
 <h2 style="margin-bottom: 20px; font-weight: 700;">{{ $title }}</h2>
 
 <!-- Alert Messages -->
-@if(session('success'))
-    <div class="alert alert-success alert-dismissible fade show" role="alert" style="margin-bottom: 20px; border-radius: 10px;">
-        <i class="fa-solid fa-check-circle me-2"></i>
-        {{ session('success') }}
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-    </div>
-@endif
-
+<!-- Success notification is handled by layout/app.blade.php to avoid duplication -->
 @if(session('error'))
     <div class="alert alert-danger alert-dismissible fade show" role="alert" style="margin-bottom: 20px; border-radius: 10px;">
         <i class="fa-solid fa-exclamation-triangle me-2"></i>
@@ -1030,7 +1034,7 @@ search-box .input-group {
       <span class="input-group-text">
         <i class="fa-solid fa-magnifying-glass text-muted"></i>
       </span>
-      <input type="text" class="form-control" name="search" placeholder="Cari nomor agenda atau SPP..." value="{{ request('search') }}">
+      <input type="text" class="form-control" name="search" placeholder="Cari nomor agenda, SPP, nilai rupiah, atau field lainnya..." value="{{ request('search') }}">
     </div>
     <div class="filter-section">
       <select name="year" class="form-select">
@@ -1048,6 +1052,31 @@ search-box .input-group {
     </a>
   </form>
 </div>
+
+@if(isset($suggestions) && !empty($suggestions) && request('search'))
+<!-- Search Suggestions Alert -->
+<div class="alert alert-info alert-dismissible fade show suggestion-alert" role="alert" style="margin-bottom: 20px; border-left: 4px solid #0dcaf0; background-color: #e7f3ff;">
+  <div class="d-flex align-items-start">
+    <i class="fa-solid fa-lightbulb me-2 mt-1" style="color: #0dcaf0; font-size: 18px;"></i>
+    <div style="flex: 1;">
+      <strong style="color: #0a58ca;">Apakah yang Anda maksud?</strong>
+      <p class="mb-2 mt-2" style="color: #055160;">
+        Tidak ada hasil ditemukan untuk "<strong>{{ request('search') }}</strong>". Mungkin maksud Anda:
+      </p>
+      <div class="suggestion-buttons d-flex flex-wrap gap-2">
+        @foreach($suggestions as $suggestion)
+          <button type="button" class="btn btn-sm btn-outline-primary suggestion-btn" 
+                  data-suggestion="{{ $suggestion }}" 
+                  style="border-color: #0dcaf0; color: #0dcaf0;">
+            <i class="fa-solid fa-magnifying-glass me-1"></i>{{ $suggestion }}
+          </button>
+        @endforeach
+      </div>
+    </div>
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+  </div>
+</div>
+@endif
 
 <!-- Enhanced Tabel Dokumen -->
 <div class="table-dokumen">
@@ -1092,7 +1121,7 @@ search-box .input-group {
           @elseif($dokumen->status == 'sent_to_ibub')
             <span class="badge-status badge-terkirim">
               <i class="fa-solid fa-check me-1"></i>
-              <span>Terkirim ke IbuB</span>
+              <span>Terkirim ke Ibu Yuni</span>
             </span>
           @elseif($dokumen->status == 'approved_data_sudah_terkirim')
             <span class="badge-status badge-terkirim">
@@ -1116,17 +1145,26 @@ search-box .input-group {
         </td>
         <td class="col-action sticky-column" onclick="event.stopPropagation()">
           <div class="action-buttons">
-            <a href="{{ route('dokumens.edit', $dokumen->id) }}" class="btn-action btn-edit" title="Edit Dokumen">
-              <i class="fa-solid fa-edit"></i>
-              <span>Edit</span>
-            </a>
             @php
+              $isSent = ($dokumen->status ?? '') == 'sent_to_ibub'
+                       || (($dokumen->current_handler ?? 'ibuA') == 'ibuB' && ($dokumen->status ?? '') != 'returned_to_ibua');
               $canSend = in_array($dokumen->status, ['draft', 'returned_to_ibua', 'sedang diproses'])
                         && ($dokumen->current_handler ?? 'ibuA') == 'ibuA'
                         && ($dokumen->created_by ?? 'ibuA') == 'ibuA';
             @endphp
+            @unless($isSent)
+              <a href="{{ route('dokumens.edit', $dokumen->id) }}" class="btn-action btn-edit" title="Edit Dokumen">
+                <i class="fa-solid fa-edit"></i>
+                <span>Edit</span>
+              </a>
+            @endunless
             @if($canSend)
-            <button class="btn-action btn-send" onclick="sendToIbuB({{ $dokumen->id }})" title="Kirim ke IbuB">
+            <button class="btn-action btn-send" onclick="sendToIbuB({{ $dokumen->id }})" title="Kirim ke Ibu Yuni">
+              <i class="fa-solid fa-paper-plane"></i>
+              <span>Kirim</span>
+            </button>
+            @elseif($isSent)
+            <button class="btn-action btn-send" disabled title="Dokumen sudah dikirim ke Ibu Yuni">
               <i class="fa-solid fa-paper-plane"></i>
               <span>Kirim</span>
             </button>
@@ -1169,7 +1207,7 @@ search-box .input-group {
             <i class="fa-solid fa-chevron-left"></i>
         </button>
     @else
-        <a href="{{ $dokumens->previousPageUrl() }}">
+        <a href="{{ $dokumens->appends(request()->query())->previousPageUrl() }}">
             <button class="btn-chevron">
                 <i class="fa-solid fa-chevron-left"></i>
             </button>
@@ -1180,7 +1218,7 @@ search-box .input-group {
     @if($dokumens->hasPages())
         {{-- First page --}}
         @if($dokumens->currentPage() > 3)
-            <a href="{{ $dokumens->url(1) }}">
+            <a href="{{ $dokumens->appends(request()->query())->url(1) }}">
                 <button>1</button>
             </a>
         @endif
@@ -1195,7 +1233,7 @@ search-box .input-group {
             @if($dokumens->currentPage() == $i)
                 <button class="active">{{ $i }}</button>
             @else
-                <a href="{{ $dokumens->url($i) }}">
+                <a href="{{ $dokumens->appends(request()->query())->url($i) }}">
                     <button>{{ $i }}</button>
                 </a>
             @endif
@@ -1208,7 +1246,7 @@ search-box .input-group {
 
         {{-- Last page --}}
         @if($dokumens->currentPage() < $dokumens->lastPage() - 2)
-            <a href="{{ $dokumens->url($dokumens->lastPage()) }}">
+            <a href="{{ $dokumens->appends(request()->query())->url($dokumens->lastPage()) }}">
                 <button>{{ $dokumens->lastPage() }}</button>
             </a>
         @endif
@@ -1216,7 +1254,7 @@ search-box .input-group {
 
     {{-- Next Page Link --}}
     @if($dokumens->hasMorePages())
-        <a href="{{ $dokumens->nextPageUrl() }}">
+        <a href="{{ $dokumens->appends(request()->query())->nextPageUrl() }}">
             <button class="btn-chevron">
                 <i class="fa-solid fa-chevron-right"></i>
             </button>
@@ -1251,9 +1289,9 @@ search-box .input-group {
         <div class="mb-3">
           <i class="fa-solid fa-question-circle" style="font-size: 52px; color: #0f8357;"></i>
         </div>
-        <h5 class="fw-bold mb-3">Apakah Anda yakin ingin mengirim dokumen ini ke IbuB?</h5>
+        <h5 class="fw-bold mb-3">Apakah Anda yakin ingin mengirim dokumen ini ke Ibu Yuni?</h5>
         <p class="text-muted mb-0">
-          Dokumen akan langsung dikirim ke IbuB dan muncul di daftar dokumen IbuB untuk diproses.
+          Dokumen akan langsung dikirim ke Ibu Yuni dan muncul di daftar dokumen Ibu Yuni untuk diproses.
         </p>
       </div>
       <div class="modal-footer border-0 justify-content-center gap-2">
@@ -1282,9 +1320,9 @@ search-box .input-group {
         <div class="mb-3">
           <i class="fa-solid fa-check-circle" style="font-size: 52px; color: #0f8357;"></i>
         </div>
-        <h5 class="fw-bold mb-2">Dokumen telah dikirim ke IbuB!</h5>
+        <h5 class="fw-bold mb-2">Dokumen telah dikirim ke Ibu Yuni!</h5>
         <p class="text-muted mb-0" id="sendSuccessMessage">
-          Dokumen berhasil dikirim dan langsung muncul di daftar dokumen IbuB.
+          Dokumen berhasil dikirim dan langsung muncul di daftar dokumen Ibu Yuni.
         </p>
       </div>
       <div class="modal-footer border-0 justify-content-center">
@@ -1398,7 +1436,7 @@ function showSendSuccessModal(message) {
 
   const textEl = document.getElementById('sendSuccessMessage');
   if (textEl) {
-    textEl.textContent = message || 'Dokumen berhasil dikirim dan akan diproses oleh IbuB.';
+    textEl.textContent = message || 'Dokumen berhasil dikirim dan akan diproses oleh Ibu Yuni.';
   }
 
   shouldReloadAfterSendSuccess = true;
@@ -1571,6 +1609,27 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 });
 
+</script>
+
+<script>
+// Handle suggestion button clicks
+document.addEventListener('DOMContentLoaded', function() {
+    const suggestionButtons = document.querySelectorAll('.suggestion-btn');
+    
+    suggestionButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const suggestion = this.getAttribute('data-suggestion');
+            const searchInput = document.querySelector('input[name="search"]');
+            const form = searchInput.closest('form');
+            
+            // Set the suggestion value to search input
+            searchInput.value = suggestion;
+            
+            // Submit the form
+            form.submit();
+        });
+    });
+});
 </script>
 
 @endsection

@@ -18,7 +18,8 @@ class DokumenHelper
                    in_array($dokumen->status, [
                        'sent_to_ibub',
                        'sent_to_akutansi',
-                       'sent_to_perpajakan'
+                       'sent_to_perpajakan',
+                       'sent_to_pembayaran'
                    ]);
 
         // Additional validation based on current handler
@@ -31,6 +32,9 @@ class DokumenHelper
                 break;
             case 'perpajakan':
                 $isLocked = $isLocked && $dokumen->status === 'sent_to_perpajakan';
+                break;
+            case 'pembayaran':
+                $isLocked = $isLocked && $dokumen->status === 'sent_to_pembayaran';
                 break;
         }
 
@@ -49,9 +53,10 @@ class DokumenHelper
     {
         if (self::isDocumentLocked($dokumen)) {
             $handlerName = match($dokumen->current_handler) {
-                'ibuB' => 'IbuB',
-                'akutansi' => 'Akutansi',
-                'perpajakan' => 'Perpajakan',
+                'ibuB' => 'Ibu Yuni',
+                'akutansi' => 'Team Akutansi',
+                'perpajakan' => 'Team Perpajakan',
+                'pembayaran' => 'Pembayaran',
                 default => 'Admin'
             };
             return "🔒 Dokumen terkunci - {$handlerName} harus menetapkan deadline terlebih dahulu";
@@ -124,6 +129,7 @@ class DokumenHelper
             'ibuB' => ['sent_to_ibub'],
             'akutansi' => ['sent_to_akutansi', 'approved_data_sudah_terkirim'],
             'perpajakan' => ['sent_to_perpajakan'],
+            'pembayaran' => ['sent_to_pembayaran'],
             default => []
         };
 
