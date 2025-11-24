@@ -144,3 +144,4 @@ Jika ada masalah saat deployment, cek:
 - Log Nginx/Apache: `/var/log/nginx/error.log` atau `/var/log/apache2/error.log`
 - Status service: `sudo systemctl status nginx` atau `sudo systemctl status apache2`
 
+

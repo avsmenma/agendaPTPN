@@ -14,7 +14,12 @@ return new class extends Migration
         Schema::table('dokumens', function (Blueprint $table) {
             // Check if column exists before adding
             if (!Schema::hasColumn('dokumens', 'link_bukti_pembayaran')) {
-                $table->text('link_bukti_pembayaran')->nullable();
+                // Try to add after status_pembayaran if it exists, otherwise just add at the end
+                if (Schema::hasColumn('dokumens', 'status_pembayaran')) {
+                    $table->text('link_bukti_pembayaran')->nullable()->after('status_pembayaran');
+                } else {
+                    $table->text('link_bukti_pembayaran')->nullable();
+                }
             }
         });
     }
